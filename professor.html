@@ -843,7 +843,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 
         <div class="timer-global-clock">
           <span>Tempo total</span>
-          <div><strong id="presentationTimer">00:00</strong><small>/ 35:00</small></div>
+          <div><strong id="presentationTimer">00:00</strong><small>/ 30:00</small></div>
         </div>
 
         <div id="timerStatusPill" class="timer-status-pill idle">
@@ -855,13 +855,13 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 
       <div class="stage-timing-grid stage-timing-wide" id="stageTimingGrid">
         <div class="stage-time-item future" data-tstage="EXPLORE">
-          <span class="stage-light"></span><span class="stage-name">EXPLORE</span><span class="stage-time">-- / 07:00</span>
+          <span class="stage-light"></span><span class="stage-name">EXPLORE</span><span class="stage-time">-- / 05:00</span>
         </div>
         <div class="stage-time-item future" data-tstage="REVELE">
           <span class="stage-light"></span><span class="stage-name">REVELE</span><span class="stage-time">-- / 05:00</span>
         </div>
         <div class="stage-time-item future" data-tstage="INVESTIGUE">
-          <span class="stage-light"></span><span class="stage-name">INVESTIGUE</span><span class="stage-time">-- / 08:00</span>
+          <span class="stage-light"></span><span class="stage-name">INVESTIGUE</span><span class="stage-time">-- / 05:00</span>
         </div>
         <div class="stage-time-item future" data-tstage="ANALISE">
           <span class="stage-light"></span><span class="stage-name">ANALISE</span><span class="stage-time">-- / 05:00</span>
@@ -876,7 +876,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 
       <div class="timer-wide-footer">
         <div class="timer-summary timer-summary-wide">
-          <div class="timer-mini"><span>Planejado</span><b id="plannedTotal">33:00 + 02:00 reserva</b></div>
+          <div class="timer-mini"><span>Planejado</span><b id="plannedTotal">28:00 + 02:00 reserva</b></div>
           <div class="timer-mini"><span>Reserva restante</span><b id="reserveRemaining">02:00</b></div>
         </div>
 
@@ -1899,14 +1899,14 @@ const TIMER_KEY='mc_presentation_timer_v3';
 const STAGE_TIMER_KEY='mc_stage_timing_v93';
 
 const STAGE_PLAN = [
-  {key:'EXPLORE',label:'EXPLORE',budget:7*60*1000},
+  {key:'EXPLORE',label:'EXPLORE',budget:5*60*1000},
   {key:'REVELE',label:'REVELE',budget:5*60*1000},
-  {key:'INVESTIGUE',label:'INVESTIGUE',budget:8*60*1000},
+  {key:'INVESTIGUE',label:'INVESTIGUE',budget:5*60*1000},
   {key:'ANALISE',label:'ANALISE',budget:5*60*1000},
   {key:'DECIDA',label:'DECIDA',budget:5*60*1000},
   {key:'FECHAMENTO',label:'FECHAMENTO',budget:3*60*1000}
 ];
-const TOTAL_TARGET_MS=35*60*1000;
+const TOTAL_TARGET_MS=30*60*1000;
 const PLANNED_MS=STAGE_PLAN.reduce((s,x)=>s+x.budget,0);
 const RESERVE_MS=TOTAL_TARGET_MS-PLANNED_MS;
 
@@ -2042,7 +2042,7 @@ function renderPresentationTimer(){
   const ms=timerElapsed();const el=document.getElementById('presentationTimer');
   const fill=document.getElementById('timerFill');const panel=document.getElementById('timerPanel')||document.querySelector('.timer-panel');
   if(el)el.textContent=fmtTime(ms);if(fill)fill.style.width=Math.min(100,(ms/TOTAL_TARGET_MS)*100)+'%';
-  if(panel){panel.classList.toggle('warn',ms>=33*60*1000&&ms<TOTAL_TARGET_MS);panel.classList.toggle('danger',ms>=TOTAL_TARGET_MS)}
+  if(panel){panel.classList.toggle('warn',ms>=28*60*1000&&ms<TOTAL_TARGET_MS);panel.classList.toggle('danger',ms>=TOTAL_TARGET_MS)}
   const currentKey=stageTiming.current;const plan=STAGE_PLAN.find(x=>x.key===currentKey);const stageElapsed=currentStageElapsed();
   const currentName=document.getElementById('currentTimedStage');const currentClock=document.getElementById('currentStageClock');
   if(currentName)currentName.textContent=plan?plan.label:'aguardando';
