@@ -627,6 +627,14 @@ body.prof-locked > #resetConfirm{visibility:hidden}
 .control-readiness-note{color:#d4e9eb;font-size:11px;line-height:1.4;max-width:260px;}
 button:disabled{opacity:.30!important;cursor:not-allowed!important;filter:grayscale(.55);pointer-events:none;}
 input#expectedCount:disabled{opacity:.72;cursor:not-allowed;}
+</style><style id="mc-control-modes-css">
+.mc-mode-picker{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:10px}
+.mc-mode-choice{display:flex!important;gap:9px;align-items:flex-start;padding:12px 14px;border-radius:12px;border:1px solid #6b8d96;background:#0e2931;cursor:pointer;line-height:1.3}
+.mc-mode-choice:has(input:checked){border:2px solid #f39843;background:#183b43}
+.mc-mode-choice input{accent-color:#f39843!important;min-width:19px!important;width:19px!important;height:19px!important;margin:2px 3px 0 0!important;padding:0!important}
+.mc-mode-choice strong{display:block;font-size:14px;color:white}.mc-mode-choice small{display:block;color:#c8dddf;margin-top:4px;font-size:11px}
+.mc-presence{font-size:12px;line-height:1.5;color:#d5e7e8;background:#113039;border:1px solid #345c65;border-radius:9px;padding:9px 11px;margin-top:9px}
+@media(max-width:650px){.mc-mode-picker{grid-template-columns:1fr}}
 </style></head>
 <body class="prof-locked">
 
@@ -702,10 +710,19 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
         </div>
         
         <div class="readiness-config">
-          <label>Meta de participantes (opcional para abrir o feed)
-            <input id="expectedCount" type="number" min="1" step="1" inputmode="numeric" placeholder="Informe a quantidade">
+          <div class="mc-mode-picker" role="radiogroup" aria-label="Modo de controle da rodada">
+            <label class="mc-mode-choice"><input type="radio" name="mcControlMode" value="manual" checked>
+              <span><strong>Controle manual</strong><small>O professor conduz todas as transições.</small></span>
+            </label>
+            <label class="mc-mode-choice"><input type="radio" name="mcControlMode" value="automatic">
+              <span><strong>Controle automático</strong><small>Avança por participação e conclusão, conforme a meta.</small></span>
+            </label>
+          </div>
+          <label>Meta de participantes (ajustável em qualquer etapa)
+            <input id="expectedCount" type="number" min="1" step="1" inputmode="numeric" placeholder="Defina a meta">
           </label>
-          <span class="control-readiness-note">O professor abre e encerra o feed manualmente. A meta informa o progresso e orienta as etapas seguintes.</span>
+          <div id="mcParticipantPresence" class="mc-presence" role="status">Conferindo presenças recentes...</div>
+          <span id="mcModeDescription" class="control-readiness-note">No modo Manual, as contagens são apenas indicadores.</span>
         </div>
         <div class="scene-box">
           <div class="scene-label">Tela atual</div>
@@ -1140,20 +1157,21 @@ window.M9_DATA = {
     readiness=readiness||{};
     const st=state.status||'waiting';
     const stage=Number(state.reveal_stage)||0;
-    const ready=k=>readiness[k]==='ok';
+    const manual=(state.control_mode||'manual')==='manual';
+    const ready=k=>manual || readiness[k]==='ok';
 
     switch(action){
       case 'openFeed':
         // Professor pode iniciar a qualquer momento; a contagem é apenas informativa.
-        return st==='waiting' || st==='feed_paused';
+        return st==='feed_paused' || (st==='waiting' && ready('feed'));
       case 'pauseFeed':
         return st==='feed_open';
       case 'closeFeed':
         // Encerramento é decidido pelo professor, não pelo último participante.
-        return st==='feed_open' || st==='feed_paused';
+        return (st==='feed_open' || st==='feed_paused') && ready('feedCompletion');
       case 'startReveal':
         // Só se pode revelar depois do comando de encerramento do professor.
-        return st==='feed_closed';
+        return st==='feed_closed' && ready('feedCompletion');
       case 'revealPrev':
       case 'revealNext':
         return st==='results_reveal';
@@ -1312,17 +1330,18 @@ function flowContext(){
     state:{status:'waiting',reveal_stage:0}
   },group);
   const state=(latest&&latest.state)||d.state||{status:'waiting',reveal_stage:0};
-  const target=expectedTarget(d.sessions.length);
+  const live=activeSubset(d);
+  const target=expectedTarget();
   const metrics={
-    total:d.sessions.length,
-    feedDone:d.sessions.filter(s=>s.feed_completed_at).length,
-    reactions:d.reactions.length,
-    investAnswers:(d.investigationAnswers||[]).length,
-    decisionAnswers:(d.decisionAnswers||[]).length,
-    investDone:d.sessions.filter(s=>s.investigation_completed_at).length,
-    decisionDone:d.sessions.filter(s=>s.decision_completed_at).length
+    total:live.sessions.length,
+    feedDone:live.sessions.filter(s=>s.feed_completed_at).length,
+    reactions:live.reactions.length,
+    investAnswers:(live.investigationAnswers||[]).length,
+    decisionAnswers:(live.decisionAnswers||[]).length,
+    investDone:live.sessions.filter(s=>s.investigation_completed_at).length,
+    decisionDone:live.sessions.filter(s=>s.decision_completed_at).length
   };
-  return {d,state,target,metrics,readiness:M9Engine.stageReadiness(state,metrics,target)};
+  return {d,live,state,target,metrics,readiness:M9Engine.stageReadiness(state,metrics,target)};
 }
 async function requireAction(action,message){
   try{
@@ -1347,7 +1366,7 @@ function lockCurrentTargets(){
   try{localStorage.setItem('mc_locked_targets',JSON.stringify(lockedTargets))}catch(_){}
 }
 async function openFeed(){
-  const ctx=await requireAction('openFeed','O feed só pode ser aberto no início ou retomado após pausa.');
+  const ctx=await requireAction('openFeed','No automático, aguarde a meta atual de presenças ativas. No manual, pode iniciar a qualquer momento.');
   if(!ctx)return;
   if(ctx.state.status==='waiting')lockCurrentTargets();
   ensureTimerRunningForExperience();
@@ -1361,7 +1380,7 @@ async function pauseFeed(){
   await writeState({status:'feed_paused'});
 }
 async function closeFeed(){
-  const ctx=await requireAction('closeFeed','O feed precisa estar aberto ou pausado para ser encerrado.');
+  const ctx=await requireAction('closeFeed','No automático, aguarde a conclusão de participantes ativos prevista na meta. Altere para Manual para encerrar por decisão sua.');
   if(!ctx)return;
   const total=ctx.metrics.total,done=ctx.metrics.feedDone;
   if(total>done && !window.confirm('Encerrar manualmente o feed agora?\n\n'+done+' de '+total+' participantes concluíram. Quem ainda estiver navegando será interrompido.'))return;
@@ -1430,7 +1449,7 @@ async function confirmFullReset(){
   btn.textContent='INICIANDO...';
 
   try{
-    const newState={status:'waiting',reveal_stage:0,closing_stage:1,
+    const newState={status:'waiting',control_mode:'manual',expected_participants:0,reveal_stage:0,closing_stage:1,
       winning_theme:null,winning_group:'ALL',presentation_group:'ALL',
       run_id:M9Engine.makeRunId(),updated_at:new Date().toISOString()};
     await writeState(newState);
@@ -1498,16 +1517,33 @@ let forceAdvance=false;
 let expectedCounts=(()=>{try{return JSON.parse(localStorage.getItem('mc_expected_counts')||'{}')}catch{return {}}})();
 function loadExpected(){
   const el=document.getElementById('expectedCount');
-  if(el)el.value=expectedCounts[group]||'';
+  if(el && document.activeElement!==el && !el.dataset.mcEditing){
+    const target=expectedTarget();
+    el.value=target>0?String(target):'';
+  }
 }
-function expectedTarget(total){
-  // A rodada exige definição explícita da quantidade de participantes.
-  // Uma vez aberta, a meta não pode diminuir e inclui entradas posteriores.
-  const configured=Math.max(0,Math.floor(Number(expectedCounts[group])||0));
-  const locked=Math.max(0,Math.floor(Number(lockedTargets[group])||0));
-  if(configured===0 && locked===0)return 0;
-  return Math.max(configured,locked,Math.max(0,Math.floor(Number(total)||0)));
+function expectedTarget(){
+  // Fonte única: a meta gravada no Supabase; não fica presa a contagens anteriores.
+  return Math.max(0,Math.floor(Number(latest?.state?.expected_participants)||0));
 }
+const MC_ACTIVE_WINDOW_MS=70000;
+function activeSessionsOf(data){
+  if(!remoteEnabled())return [...(data.sessions||[])];
+  const now=Date.now();
+  return (data.sessions||[]).filter(s=>{
+    const seen=Date.parse(s.last_seen_at||'');
+    return Number.isFinite(seen) && seen<=now+10000 && now-seen<MC_ACTIVE_WINDOW_MS;
+  });
+}
+function activeSubset(data){
+  const sessions=activeSessionsOf(data);
+  const ids=new Set(sessions.map(x=>x.id));
+  const filter=rows=>(rows||[]).filter(row=>ids.has(row.session_id));
+  return {...data,sessions,reactions:filter(data.reactions),
+    attention:filter(data.attention),events:filter(data.events),
+    investigationAnswers:filter(data.investigationAnswers),decisionAnswers:filter(data.decisionAnswers)};
+}
+function currentMode(){return latest?.state?.control_mode==='automatic'?'automatic':'manual'}
 function setReady(id,status,label){
   const el=document.getElementById(id); if(!el)return;
   el.classList.remove('ok','warn','no');
@@ -1529,29 +1565,45 @@ function interlock(id,status,reason='Etapa ainda não está pronta'){
 }
 function updateReadiness(d){
   const state=latest.state||{status:'waiting',reveal_stage:0};
-  const target=expectedTarget(d.sessions.length);
+  const live=activeSubset(d);
+  const target=expectedTarget();
   const metrics={
-    total:d.sessions.length,
-    feedDone:d.sessions.filter(s=>s.feed_completed_at).length,
-    reactions:d.reactions.length,
-    investAnswers:(d.investigationAnswers||[]).length,
-    decisionAnswers:(d.decisionAnswers||[]).length,
-    investDone:d.sessions.filter(s=>s.investigation_completed_at).length,
-    decisionDone:d.sessions.filter(s=>s.decision_completed_at).length
+    total:live.sessions.length,
+    feedDone:live.sessions.filter(s=>s.feed_completed_at).length,
+    reactions:live.reactions.length,
+    investAnswers:(live.investigationAnswers||[]).length,
+    decisionAnswers:(live.decisionAnswers||[]).length,
+    investDone:live.sessions.filter(s=>s.investigation_completed_at).length,
+    decisionDone:live.sessions.filter(s=>s.decision_completed_at).length
   };
   const r=M9Engine.stageReadiness(state,metrics,target);
-  const expectedInput=document.getElementById('expectedCount');
-  if(expectedInput)expectedInput.disabled=state.status!=='waiting';
+  const automatic=currentMode()==='automatic';
+  loadExpected();
+  document.querySelectorAll('input[name="mcControlMode"]').forEach(el=>{
+    el.checked=el.value===currentMode();
+    el.closest('.mc-mode-choice')?.classList.toggle('is-selected',el.checked);
+  });
+  const presence=document.getElementById('mcParticipantPresence');
+  if(presence)presence.textContent='Ativos: '+metrics.total+
+    '  |  Registros sem atividade recente: '+Math.max(0,d.sessions.length-metrics.total)+
+    '  |  Meta atual: '+(target||'não definida');
+  const description=document.getElementById('mcModeDescription');
+  if(description)description.textContent=automatic
+    ? 'Automático: considera apenas sessões ativas e usa a meta atual. Etapas explicativas permanecem sob apresentação do professor.'
+    : 'Manual: a quantidade é informativa; o professor abre, pausa, encerra e conduz as etapas.';
 
   const duringFeed=['feed_open','feed_paused','feed_closed'].includes(state.status);
-  const feedStatus=['feed_open','feed_paused'].includes(state.status)?'ok':state.status==='waiting'?'ok':r.feedCompletion;
-  const feedLabel=state.status==='waiting'?'pronto para abertura manual'
-    : state.status==='feed_open'?'ABERTO · professor controla'
+  const feedStatus=automatic?(state.status==='waiting'?r.feed:
+     ['feed_open','feed_paused'].includes(state.status)?r.feedCompletion:r.feedCompletion)
+     :['feed_open','feed_paused','feed_closed','waiting'].includes(state.status)?'ok':r.feedCompletion;
+  const feedLabel=state.status==='waiting'?(automatic?'aguardando '+target+' presenças ativas':'liberação manual')
+    : state.status==='feed_open'?(automatic?metrics.feedDone+'/'+target+' concluíram':'ABERTO · professor controla')
     : state.status==='feed_paused'?'PAUSADO · professor controla'
-    : state.status==='feed_closed'?'ENCERRADO pelo professor'
+    : state.status==='feed_closed'?'ENCERRADO'
     : `${metrics.feedDone}/${target||metrics.total} concluíram o feed`;
   setReady('readyFeed',feedStatus,feedLabel);
-  setReady('readyReveal',state.status==='feed_closed'?'ok':r.reveal,state.status==='feed_closed'?'feed encerrado · comando manual':target>0?`${metrics.feedDone}/${target} terminaram o feed`:'aguarde');
+  setReady('readyReveal',state.status==='feed_closed'?(automatic?r.feedCompletion:'ok'):r.reveal,
+    state.status==='feed_closed'?'feed encerrado':target>0?`${metrics.feedDone}/${target} terminaram o feed`:'aguarde');
   setReady('readyInvestigate',r.investigatePreview,r.investigatePreview==='warn'?'avance até 6/6':r.investigatePreview==='ok'?'cena 6/6':'aguarde');
   setReady('readyInvestigateRelease',r.investigateRelease,state.status==='investigation_open'?'liberado':r.investigateRelease==='ok'?'apresentado':'bloqueado');
 
@@ -1568,9 +1620,9 @@ function updateReadiness(d){
     el.disabled=!ok; el.title=ok?'':reason;
   };
 
-  lock('openFeedBtn',allow('openFeed'),'Disponível apenas antes da abertura ou enquanto o feed estiver pausado.');
+  lock('openFeedBtn',allow('openFeed'),'No automático, requer a meta de presenças ativas. No manual, é livre.');
   lock('pauseFeedBtn',allow('pauseFeed'),'O feed só pode ser pausado enquanto estiver aberto.');
-  lock('closeFeedBtn',allow('closeFeed'),'Disponível apenas com o feed aberto ou pausado.');
+  lock('closeFeedBtn',allow('closeFeed'),'No automático, requer meta de conclusões; no manual, o professor decide.');
   lock('startRevealBtn',allow('startReveal'),'Use ENCERRAR FEED primeiro.');
   lock('startInvestigateBtn',allow('previewInvestigation'),'Chegue à cena 6/6 do REVELE.');
   lock('releaseInvestigateBtn',allow('releaseInvestigation'),'Apresente a investigação primeiro.');
@@ -1763,7 +1815,7 @@ function render(){
  safeSection('resultados coletivos',()=>syncGroupControls());
  const views=d.events.filter(e=>e.event_type==='view').length;
  const thumbs=d.reactions.filter(r=>r.reaction==='thumb').length, hearts=d.reactions.filter(r=>r.reaction==='heart').length;
- document.getElementById('participants').textContent=d.sessions.length; document.getElementById('completed').textContent=d.sessions.filter(s=>s.feed_completed_at).length; 
+ document.getElementById('participants').textContent=activeSessionsOf(d).length; document.getElementById('completed').textContent=activeSessionsOf(d).filter(s=>s.feed_completed_at).length; 
  document.getElementById('views').textContent=views; document.getElementById('mc_reactions').textContent=d.reactions.length; document.getElementById('thumbs').textContent=thumbs; document.getElementById('hearts').textContent=hearts;
  avgViews.textContent=d.sessions.length?(views/d.sessions.length).toFixed(1):'0';
  completion.textContent=d.sessions.length?Math.round(100*d.sessions.filter(s=>s.feed_completed_at).length/d.sessions.length)+'%':'0%';
@@ -1984,7 +2036,36 @@ function renderPresentationTimer(){
   const b=document.getElementById('timerStartBtn');if(b)b.textContent=presentationTimer.running?'RODANDO':'INICIAR / RETOMAR';
 }
 function setSystemHealth(state,text){const el=document.getElementById('systemHealth');const tx=document.getElementById('systemHealthText');if(el){el.classList.remove('starting','ok','error');el.classList.add(state)}if(tx)tx.textContent=text}
-async function refresh(){try{latest=await getAll();group='ALL';syncTimedStage();render();renderPresentationTimer();setSystemHealth('ok','SISTEMA OK')}
+let mcAutoBusy=false;
+async function mcAutomaticProgress(){
+  if(mcAutoBusy||!remoteEnabled()||!latest||currentMode()!=='automatic')return;
+  try{
+    if(sessionStorage.getItem('mc_professor_authorized')!=='1')return;
+    const ctx=flowContext(),m=ctx.metrics,t=ctx.target,st=ctx.state.status;
+    if(t<1||m.total<t)return;
+    let patch=null;
+    if(st==='waiting'&&M9Engine.canAction('openFeed',ctx.state,ctx.readiness)){
+      patch={status:'feed_open',presentation_group:'ALL'};
+    }else if(st==='feed_open'&&M9Engine.canAction('closeFeed',ctx.state,ctx.readiness)){
+      patch={status:'feed_closed'};
+    }else if(st==='feed_closed'&&M9Engine.canAction('startReveal',ctx.state,ctx.readiness)){
+      patch={status:'results_reveal',reveal_stage:1,presentation_group:'ALL'};
+    }else if(st==='investigation_open'&&M9Engine.canAction('previewDecide',ctx.state,ctx.readiness)){
+      patch={status:'decide_preview'};
+    }else if(st==='decide_open'&&M9Engine.canAction('revealDecide',ctx.state,ctx.readiness)){
+      patch={status:'decide_reveal'};
+    }
+    if(!patch)return;
+    mcAutoBusy=true;
+    // Reconfirmação: uma alteração de meta/modo tem prioridade sobre o avanço.
+    const newest=(await getAll()).state;
+    if(newest.status!==st||newest.control_mode!=='automatic'||
+       Number(newest.expected_participants)!==t)return;
+    await writeState(patch);
+  }catch(e){console.error('Erro de avanço automático:',e);setSystemHealth('error','AUTOMÁTICO INDISPONÍVEL')}
+  finally{mcAutoBusy=false}
+}
+async function refresh(){try{latest=await getAll();group='ALL';syncTimedStage();render();renderPresentationTimer();setSystemHealth('ok','SISTEMA OK');void mcAutomaticProgress()}
 catch(e){console.error('Falha no refresh:',e);setSystemHealth('error','ERRO NO PAINEL')}}
 function groupIsLocked(){return false}
 async function selectGroup(nextGroup){group='ALL';loadExpected();if(latest)render()}
@@ -1995,8 +2076,32 @@ function bindProfessorEvents(){
  document.querySelectorAll('.workspace').forEach(x=>x.classList.remove('active'));
  document.getElementById('view-'+b.dataset.view)?.classList.add('active');
  if(b.dataset.view==='analysis')safeSection('análise',()=>renderAnalytics())}});
- document.getElementById('expectedCount')?.addEventListener('input',e=>{expectedCounts[group]=Math.max(0,Number(e.target.value)||0);
- try{localStorage.setItem('mc_expected_counts',JSON.stringify(expectedCounts))}catch(_){}if(latest)render()});
+ document.querySelectorAll('input[name="mcControlMode"]').forEach(input=>{
+   input.addEventListener('change',async ()=>{
+     if(!input.checked||!latest)return;
+     const mode=input.value==='automatic'?'automatic':'manual';
+     try{await writeState({control_mode:mode})}
+     catch(e){console.error('Erro ao mudar modo',e);alert('Não foi possível alterar o modo. Verifique o PIN.');await refresh()}
+   });
+ });
+ const count=document.getElementById('expectedCount');
+ let countTimer=null;
+ async function persistCount(){
+   if(!count||!latest)return;
+   const value=Math.max(0,Math.floor(Number(count.value)||0));
+   try{await writeState({expected_participants:value})}
+   catch(e){console.error('Falha ao gravar meta',e);alert('A nova meta não foi gravada. Verifique a conexão.');await refresh()}
+   finally{delete count.dataset.mcEditing}
+ }
+ count?.addEventListener('input',()=>{
+   count.dataset.mcEditing='1';
+   if(countTimer)clearTimeout(countTimer);
+   countTimer=setTimeout(()=>{countTimer=null;void persistCount()},750);
+ });
+ count?.addEventListener('blur',()=>{
+   if(countTimer){clearTimeout(countTimer);countTimer=null;void persistCount()}
+   else delete count.dataset.mcEditing;
+ });
 
  document.addEventListener('keydown',e=>{if(e.key==='Escape')closeResetConfirm()});
  document.getElementById('resetConfirm')?.addEventListener('click',e=>{if(e.target.id==='resetConfirm')closeResetConfirm()});
@@ -2006,7 +2111,7 @@ function bootProfessorPanel(){if(panelBooted)return;panelBooted=true;
  try{setSystemHealth('starting','INICIANDO');bindProfessorEvents();loadExpected();initializeLocalRun();
  const mode=document.getElementById('mode');if(mode){if(remoteEnabled()){mode.textContent='SUPABASE';mode.style.background='#d9f6e8';mode.style.color='#155b3a'}else{mode.textContent='DEMO LOCAL';mode.style.background='#fff2c8';mode.style.color='#5b4617';if(location.protocol==='file:')mode.title='Teste local: sem chamadas ao Supabase.'}}
  renderPresentationTimer();if(timerIntervalId)clearInterval(timerIntervalId);timerIntervalId=setInterval(renderPresentationTimer,500);
- if(refreshIntervalId)clearInterval(refreshIntervalId);refreshIntervalId=setInterval(refresh,1400);
+ if(refreshIntervalId)clearInterval(refreshIntervalId);refreshIntervalId=setInterval(refresh,2500);
  if(channel)channel.onmessage=()=>refresh();window.addEventListener('storage',e=>{if(!e.key||e.key.startsWith('mc_'))refresh()});
  window.addEventListener('unhandledrejection',e=>{console.error('Promise rejeitada:',e.reason);setSystemHealth('error','ERRO NO PAINEL')});
  window.addEventListener('error',e=>{console.error('Erro global:',e.error||e.message);setSystemHealth('error','ERRO NO PAINEL')});refresh()}
