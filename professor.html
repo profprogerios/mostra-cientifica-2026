@@ -100,8 +100,8 @@ button:disabled{opacity:.35;cursor:not-allowed;transform:none}
 .mirror-mini-fill{height:100%;background:linear-gradient(90deg,#f18a2a,#ffc16a);border-radius:99px}
 .mirror-cloud{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:7px 10px;width:92%}
 .mirror-cloud span{font-weight:900;color:#eaf0f1}
-.mirror-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;width:92%;margin-top:7px}
-.mirror-card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:9px;padding:7px;text-align:left}
+.mirror-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:stretch;justify-content:center;gap:7px;width:94%;margin:0 auto}
+.mirror-card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);border-radius:9px;padding:10px 6px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-width:0}
 .mirror-card b{display:block;font-size:8px}.mirror-card strong{font-size:12px;color:#ffc16a}
 .mirror-bottom{text-align:center;color:#66878e;font-size:6px;letter-spacing:.02em}
 .mirror-note{font-size:10px;color:var(--muted);margin-top:6px;line-height:1.3}
@@ -1774,7 +1774,7 @@ function renderMirror(d){
       const top=r.slice(0,7),mx=Math.max(1,...top.map(x=>x.score));
       box.innerHTML='<div class="mirror-kicker">PADRÕES DE INTERESSE</div><div class="mirror-cloud">'+top.map((x,i)=>`<span style="font-size:${9+8*x.score/mx}px;opacity:${.62+.38*(1-i/top.length)}">${x.theme}</span>`).join('')+'</div>';
     } else {
-      box.innerHTML='<div class="mirror-kicker">RANKING DOS VISITANTES</div><div class="mirror-title" style="font-size:16px">O padrão ficou visível</div><div class="mirror-cards">'+r.slice(0,3).map((x,i)=>`<div class="mirror-card"><b>${i+1}º lugar</b><span>${x.theme}</span><strong>${mirrorPct(x.score,total)}</strong></div>`).join('')+'</div>';
+      box.innerHTML='<div class="mirror-cards">'+r.slice(0,3).map((x,i)=>`<div class="mirror-card"><b>${i+1}º lugar</b><span>${x.theme}</span><strong>${mirrorPct(x.score,total)}</strong></div>`).join('')+'</div>';
     }
     return;
   }
