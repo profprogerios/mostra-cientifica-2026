@@ -1223,18 +1223,48 @@ function headers(extra={}){return {apikey:CONFIG.supabasePublishableKey,'Content
 async function sb(path,opts={}){const r=await fetch(CONFIG.supabaseUrl+'/rest/v1/'+path,{...opts,headers:headers(opts.headers||{})});if(!r.ok)throw new Error(await r.text());const t=await r.text();return t?JSON.parse(t):null}
 function dg(k,f){try{return JSON.parse(localStorage.getItem(k)||'null')??f}catch{return f}}
 function ds(k,v){localStorage.setItem(k,JSON.stringify(v));channel?.postMessage({type:'changed',key:k})}
+// Consulta paginada: o Supabase limita uma resposta a 1.000 registros por padrão.
+async function mcReadPages(table,filter='',order='id.asc'){
+  const pageSize=1000;
+  const all=[];
+  for(let offset=0;;offset+=pageSize){
+    const path=table+'?select=*'+filter+'&order='+encodeURIComponent(order)+'&limit='+pageSize+'&offset='+offset;
+    const page=await sb(path);
+    if(!Array.isArray(page))throw Error('Resposta inesperada na consulta '+table);
+    all.push(...page);
+    if(page.length<pageSize)return all;
+  }
+}
 async function getAll(){
   if(remoteEnabled()){
-    const [sessions,reactions,attention,events,investigationAnswers,decisionAnswers,state]=await Promise.all([
-      sb('mc_sessions?select=*'),
-      sb('mc_reactions?select=*'),
-      sb('mc_attention?select=*'),
-      sb('mc_feed_events?select=*'),
-      sb('mc_investigation_answers?select=*'),
-      sb('mc_decision_answers?select=*'),
-      sb('mc_experiment_state?id=eq.main&select=*')
+    // Consulta apenas a rodada em andamento; testes anteriores permanecem no banco.
+    const stateRows=await sb('mc_experiment_state?id=eq.main&select=*');
+    const state=stateRows?.[0]||{status:'waiting',reveal_stage:0,presentation_group:'ALL'};
+    
+    const runFilter=state.run_id?'&run_id=eq.'+encodeURIComponent(state.run_id):'';
+    const sessions=await mcReadPages('mc_sessions',runFilter,'id.asc');
+    const ids=sessions.map(s=>s.id).filter(Boolean);
+    if(!ids.length){
+      return {sessions,reactions:[],attention:[],events:[],investigationAnswers:[],decisionAnswers:[],state};
+    }
+    // Evita o limite de 1.000 linhas e a leitura das rodadas anteriores.
+    const batchSize=50;
+    async function records(table,order){
+      const batches=[];
+      for(let i=0;i<ids.length;i+=batchSize){
+        const filter='&session_id=in.('+ids.slice(i,i+batchSize).join(',')+')';
+        batches.push(mcReadPages(table,filter,order));
+      }
+      return (await Promise.all(batches)).flat();
+    }
+    const [reactions,attention,events,investigationAnswers,decisionAnswers]=await Promise.all([
+      records('mc_reactions','session_id.asc,post_id.asc'),
+      records('mc_attention','session_id.asc,post_id.asc'),
+      records('mc_feed_events','id.asc'),
+      records('mc_investigation_answers','session_id.asc,theme_slug.asc,question_id.asc'),
+      records('mc_decision_answers','session_id.asc,theme_slug.asc')
     ]);
-    return {sessions:sessions||[],reactions:reactions||[],attention:attention||[],events:events||[],investigationAnswers:investigationAnswers||[],decisionAnswers:decisionAnswers||[],state:state?.[0]||{status:'waiting',reveal_stage:0,presentation_group:'ALL'}};
+    return {sessions,reactions,attention,events,investigationAnswers,decisionAnswers,state};
   }
   return {
     sessions:dg('mc_sessions',[]),
