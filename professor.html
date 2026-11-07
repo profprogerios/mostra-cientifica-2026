@@ -843,7 +843,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 
         <div class="timer-global-clock">
           <span>Tempo total</span>
-          <div><strong id="presentationTimer">00:00</strong><small>/ 40:00</small></div>
+          <div><strong id="presentationTimer">00:00</strong><small>/ 35:00</small></div>
         </div>
 
         <div id="timerStatusPill" class="timer-status-pill idle">
@@ -855,13 +855,13 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 
       <div class="stage-timing-grid stage-timing-wide" id="stageTimingGrid">
         <div class="stage-time-item future" data-tstage="EXPLORE">
-          <span class="stage-light"></span><span class="stage-name">EXPLORE</span><span class="stage-time">-- / 08:00</span>
+          <span class="stage-light"></span><span class="stage-name">EXPLORE</span><span class="stage-time">-- / 07:00</span>
         </div>
         <div class="stage-time-item future" data-tstage="REVELE">
           <span class="stage-light"></span><span class="stage-name">REVELE</span><span class="stage-time">-- / 05:00</span>
         </div>
         <div class="stage-time-item future" data-tstage="INVESTIGUE">
-          <span class="stage-light"></span><span class="stage-name">INVESTIGUE</span><span class="stage-time">-- / 10:00</span>
+          <span class="stage-light"></span><span class="stage-name">INVESTIGUE</span><span class="stage-time">-- / 08:00</span>
         </div>
         <div class="stage-time-item future" data-tstage="ANALISE">
           <span class="stage-light"></span><span class="stage-name">ANALISE</span><span class="stage-time">-- / 05:00</span>
@@ -870,13 +870,13 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
           <span class="stage-light"></span><span class="stage-name">DECIDA</span><span class="stage-time">-- / 05:00</span>
         </div>
         <div class="stage-time-item future" data-tstage="FECHAMENTO">
-          <span class="stage-light"></span><span class="stage-name">FECHAMENTO</span><span class="stage-time">-- / 05:00</span>
+          <span class="stage-light"></span><span class="stage-name">FECHAMENTO</span><span class="stage-time">-- / 03:00</span>
         </div>
       </div>
 
       <div class="timer-wide-footer">
         <div class="timer-summary timer-summary-wide">
-          <div class="timer-mini"><span>Planejado</span><b id="plannedTotal">38:00 + 02:00 reserva</b></div>
+          <div class="timer-mini"><span>Planejado</span><b id="plannedTotal">33:00 + 02:00 reserva</b></div>
           <div class="timer-mini"><span>Reserva restante</span><b id="reserveRemaining">02:00</b></div>
         </div>
 
@@ -1320,6 +1320,8 @@ async function writeState(patch){
     });
     if(!Array.isArray(data)||!data.length){clearProfessorControlKey();throw Error('Controle não autorizado. Faça login novamente com o PIN do professor.')}
   }else ds('mc_state',next);
+  // O feed, tanto manual quanto automático, é o gatilho único do cronômetro.
+  if(next.status==='feed_open' && cur.status!=='feed_open')ensureTimerRunningForExperience();
   await refresh();
 }
 
@@ -1369,9 +1371,8 @@ async function openFeed(){
   const ctx=await requireAction('openFeed','No automático, aguarde a meta atual de presenças ativas. No manual, pode iniciar a qualquer momento.');
   if(!ctx)return;
   if(ctx.state.status==='waiting')lockCurrentTargets();
-  ensureTimerRunningForExperience();
-  setTimedStage('EXPLORE');
   await writeState({status:'feed_open',presentation_group:group});
+  setTimedStage('EXPLORE');
   syncTimedStage();
   renderPresentationTimer();
 }
@@ -1508,7 +1509,7 @@ async function closingStep(delta){
   if(!await requireAction(action,'Os controles do fechamento funcionam somente durante o FECHAMENTO.'))return;
   const s=(await getAll()).state||{};
   const current=s.closing_stage||1;
-  const next=Math.max(1,Math.min(9,current+delta));
+  const next=Math.max(1,Math.min(7,current+delta));
   await writeState({status:'closing_reveal',closing_stage:next});
 }
 
@@ -1640,7 +1641,7 @@ function updateReadiness(d){
   if(next)next.disabled=state.status!=='results_reveal'||(state.reveal_stage||1)>=6;
   const cp=document.getElementById('closingPrev'),cn=document.getElementById('closingNext');
   if(cp)cp.disabled=state.status!=='closing_reveal'||(state.closing_stage||1)<=1;
-  if(cn)cn.disabled=state.status!=='closing_reveal'||(state.closing_stage||1)>=9;
+  if(cn)cn.disabled=state.status!=='closing_reveal'||(state.closing_stage||1)>=7;
 }
 function scoreMap(reactions){return reactionScoreMap(reactions)}
 function percent(v,total){return total?Math.round(v*1000/total)/10:0}
@@ -1731,9 +1732,7 @@ const CLOSING_TITLES={
   4:'Padrões permitem fazer inferências.',
   5:'Quando um padrão começa a orientar uma ação?',
   6:'Por que os dados têm valor?',
-  7:'Dados exigem responsabilidade.',
-  8:'Quais profissões trabalham com dados?',
-  9:'DATA DRIVEN: decisões orientadas por evidências.'
+  7:'DATA DRIVEN: decisões orientadas por evidências.'
 };
 function mirrorPct(v,total){
   if(!total)return '0%';
@@ -1805,7 +1804,7 @@ function renderMirror(d){
   }
   if(st.status==='closing_reveal'){
     const n=st.closing_stage||1;
-    box.innerHTML=`<div class="mirror-kicker">FECHAMENTO · ${n}/9</div><div class="mirror-title">${CLOSING_TITLES[n]||'Fechamento pedagógico'}</div>`;
+    box.innerHTML=`<div class="mirror-kicker">FECHAMENTO · ${n}/7</div><div class="mirror-title">${CLOSING_TITLES[n]||'Fechamento pedagógico'}</div>`;
     return;
   }
 }
@@ -1837,7 +1836,7 @@ function render(){
  else if(st==='decide_preview'){ sceneTitle='Decida · apresentação'; sceneSub='Desafio em explicação; decisões dos participantes bloqueadas.'; badgeLabel='etapa'; badgeValue='DEC'; }
  else if(st==='decide_open'){ sceneTitle='Decida · liberado'; sceneSub='Participantes tomando a decisão.'; badgeLabel='etapa'; badgeValue='DEC'; }
  else if(st==='decide_reveal'){ sceneTitle='Decida · resultado'; sceneSub='Resultado coletivo em exibição.'; badgeLabel='etapa'; badgeValue='DEC'; }
- else if(st==='closing_reveal'){ sceneTitle='Fechamento pedagógico'; sceneSub=`Cena ${closingStage} de 9.`; badgeLabel='fech.'; badgeValue=`${closingStage}/9`; }
+ else if(st==='closing_reveal'){ sceneTitle='Fechamento pedagógico'; sceneSub=`Cena ${closingStage} de 7.`; badgeLabel='fech.'; badgeValue=`${closingStage}/7`; }
 
  document.getElementById('sceneText').firstChild.textContent=sceneTitle;
  document.getElementById('sceneSub').textContent=sceneSub;
@@ -1847,7 +1846,7 @@ function render(){
  document.getElementById('revealPrev').disabled = st!=='results_reveal' || revealStage<=1;
  document.getElementById('revealNext').disabled = st!=='results_reveal' || revealStage>=6;
  document.getElementById('closingPrev').disabled = st!=='closing_reveal' || closingStage<=1;
- document.getElementById('closingNext').disabled = st!=='closing_reveal' || closingStage>=9;
+ document.getElementById('closingNext').disabled = st!=='closing_reveal' || closingStage>=7;
 
  const win=latest.state.winning_theme||'—';
  document.getElementById('winningTheme').textContent=win;
@@ -1900,14 +1899,14 @@ const TIMER_KEY='mc_presentation_timer_v3';
 const STAGE_TIMER_KEY='mc_stage_timing_v93';
 
 const STAGE_PLAN = [
-  {key:'EXPLORE',label:'EXPLORE',budget:8*60*1000},
+  {key:'EXPLORE',label:'EXPLORE',budget:7*60*1000},
   {key:'REVELE',label:'REVELE',budget:5*60*1000},
-  {key:'INVESTIGUE',label:'INVESTIGUE',budget:10*60*1000},
+  {key:'INVESTIGUE',label:'INVESTIGUE',budget:8*60*1000},
   {key:'ANALISE',label:'ANALISE',budget:5*60*1000},
   {key:'DECIDA',label:'DECIDA',budget:5*60*1000},
-  {key:'FECHAMENTO',label:'FECHAMENTO',budget:5*60*1000}
+  {key:'FECHAMENTO',label:'FECHAMENTO',budget:3*60*1000}
 ];
-const TOTAL_TARGET_MS=40*60*1000;
+const TOTAL_TARGET_MS=35*60*1000;
 const PLANNED_MS=STAGE_PLAN.reduce((s,x)=>s+x.budget,0);
 const RESERVE_MS=TOTAL_TARGET_MS-PLANNED_MS;
 
@@ -1994,7 +1993,7 @@ function stageBudget(key){
   return STAGE_PLAN.find(x=>x.key===key)?.budget||0;
 }
 function startPresentationTimer(){
-  if(presentationTimer.running)return;
+  if(presentationTimer.running && presentationTimer.startedAt)return;
   presentationTimer.running=true;
   presentationTimer.startedAt=Date.now();
   savePresentationTimer();
@@ -2006,8 +2005,6 @@ function pausePresentationTimer(){
   presentationTimer.running=false;
   presentationTimer.startedAt=null;
   savePresentationTimer();
-  presentationTimer.startedAt=null;
-  savePresentationTimer();
   renderPresentationTimer();
 }
 function resetPresentationTimer(){
@@ -2016,13 +2013,36 @@ function resetPresentationTimer(){
   try{localStorage.removeItem(TIMER_KEY);localStorage.removeItem(STAGE_TIMER_KEY);localStorage.removeItem('mc_presentation_timer_v2')}catch(_){}
   savePresentationTimer();saveStageTiming();renderPresentationTimer();
 }
-function ensureTimerRunningForExperience(){if(!presentationTimer.running && timerElapsed()===0)startPresentationTimer()}
+function ensureTimerRunningForExperience(){
+  if(!presentationTimer.running || !presentationTimer.startedAt)startPresentationTimer();
+}
+const MC_TIMER_RUN_KEY='mc_timer_current_run_v1';
+function syncTimerWithSharedState(){
+  const state=latest?.state;
+  if(!state)return;
+  const runId=String(state.run_id||'');
+  if(runId){
+    let previous=null;
+    try{previous=localStorage.getItem(MC_TIMER_RUN_KEY)}catch(_){}
+    if(previous && previous!==runId){
+      // Uma nova rodada, iniciada inclusive em outro painel, zera o cronômetro antigo.
+      presentationTimer={elapsed:0,running:false,startedAt:null};
+      stageTiming={current:null,phaseStartedAtElapsed:0,completed:{}};
+      savePresentationTimer();saveStageTiming();
+    }
+    try{localStorage.setItem(MC_TIMER_RUN_KEY,runId)}catch(_){}
+  }
+  // Recupera a partida se a mudança para FEED_ABERTO ocorrer via automação.
+  if(state.status==='feed_open' && !presentationTimer.running && timerElapsed()===0){
+    startPresentationTimer();
+  }
+}
 function renderPresentationTimer(){
   syncTimedStage();
   const ms=timerElapsed();const el=document.getElementById('presentationTimer');
   const fill=document.getElementById('timerFill');const panel=document.getElementById('timerPanel')||document.querySelector('.timer-panel');
   if(el)el.textContent=fmtTime(ms);if(fill)fill.style.width=Math.min(100,(ms/TOTAL_TARGET_MS)*100)+'%';
-  if(panel){panel.classList.toggle('warn',ms>=38*60*1000&&ms<TOTAL_TARGET_MS);panel.classList.toggle('danger',ms>=TOTAL_TARGET_MS)}
+  if(panel){panel.classList.toggle('warn',ms>=33*60*1000&&ms<TOTAL_TARGET_MS);panel.classList.toggle('danger',ms>=TOTAL_TARGET_MS)}
   const currentKey=stageTiming.current;const plan=STAGE_PLAN.find(x=>x.key===currentKey);const stageElapsed=currentStageElapsed();
   const currentName=document.getElementById('currentTimedStage');const currentClock=document.getElementById('currentStageClock');
   if(currentName)currentName.textContent=plan?plan.label:'aguardando';
@@ -2069,7 +2089,7 @@ async function mcAutomaticProgress(){
   }catch(e){console.error('Erro de avanço automático:',e);setSystemHealth('error','AUTOMÁTICO INDISPONÍVEL')}
   finally{mcAutoBusy=false}
 }
-async function refresh(){try{latest=await getAll();group='ALL';syncTimedStage();render();renderPresentationTimer();setSystemHealth('ok','SISTEMA OK');void mcAutomaticProgress()}
+async function refresh(){try{latest=await getAll();group='ALL';syncTimerWithSharedState();syncTimedStage();render();renderPresentationTimer();setSystemHealth('ok','SISTEMA OK');void mcAutomaticProgress()}
 catch(e){console.error('Falha no refresh:',e);setSystemHealth('error','ERRO NO PAINEL')}}
 function groupIsLocked(){return false}
 async function selectGroup(nextGroup){group='ALL';loadExpected();if(latest)render()}
