@@ -2,6 +2,17 @@
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Mostra Científica 2026 — Telão</title>
 <style>
+/* DECIDA expressa: ação concreta, duas evidências e limite interpretativo. */
+.mc-team-decision{width:min(1120px,92vw);margin:auto;display:flex;flex-direction:column;align-items:center;gap:clamp(12px,1.8vh,24px)}
+.mc-team-decision h2{font-size:clamp(28px,3.8vw,56px);margin:0}
+.mc-team-action{font-size:clamp(23px,3.2vw,45px);font-weight:900;line-height:1.15;color:#fff;border:1px solid rgba(241,138,42,.55);background:rgba(241,138,42,.09);padding:clamp(18px,2.5vw,30px);border-radius:22px;max-width:1040px}
+.mc-team-evidence{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;width:100%;text-align:left}
+.mc-team-evidence>div{display:flex;flex-direction:column;gap:10px;background:rgba(255,255,255,.055);padding:clamp(15px,2vw,24px);border-radius:17px;min-width:0}
+.mc-team-evidence strong{color:#ffc16a;font-size:clamp(13px,1.25vw,18px);letter-spacing:.05em}
+.mc-team-evidence span{font-size:clamp(16px,1.8vw,25px);line-height:1.25}
+.mc-team-limit{font-size:clamp(13px,1.2vw,17px);max-width:1100px}
+@media(max-width:700px){.mc-team-evidence{grid-template-columns:1fr;gap:8px}}
+
 :root{--petrol:#0a252c;--petrol2:#06191e;--orange:#f18a2a;--white:#f7f8f5;--muted:#9fb1b5}
 *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;background:var(--petrol2);color:var(--white);font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;overflow:hidden}
 main{height:100dvh;display:grid;place-items:center;padding:clamp(18px,3vw,36px) clamp(18px,3vw,30px) 38px;position:relative;background:radial-gradient(circle at 75% 18%,rgba(241,138,42,.08),transparent 28%),linear-gradient(135deg,#06191e,#0a2c34)}
@@ -587,6 +598,7 @@ if(!Array.prototype.flatMap){Array.prototype.flatMap=function(fn,ctx){return thi
 const CONFIG=window.M9_PUBLIC_CONFIG;
 const THEMES=window.M9_DATA.THEMES;
 const POSTS=window.M9_DATA.POST_META;
+const THEME_TO_SLUG=window.M9_DATA.THEME_TO_SLUG;
 const DECISION=window.M9_DATA.DECISION;
 const channel=('BroadcastChannel' in window)?new BroadcastChannel('mc-data-driven-2026'):null;
 function remoteEnabled(){return location.protocol!=='file:' && CONFIG.supabaseUrl.startsWith('http')&&!CONFIG.supabasePublishableKey.startsWith('COLE_')}
@@ -600,23 +612,23 @@ async function getAll(){
     const stateRows=await sb('mc_experiment_state?id=eq.main&select=*');
     const state=(stateRows&&stateRows[0])||{status:'waiting',reveal_stage:0,presentation_group:'ALL'};
     if(['waiting','feed_open','feed_paused','feed_closed'].includes(state.status)){
-      return {sessions:[],reactions:[],attention:[],events:[],decisionAnswers:[],state};
+      return {sessions:[],reactions:[],attention:[],events:[],investigationAnswers:[],state};
     }
-    const [sessions,reactions,attention,events,decisionAnswers]=await Promise.all([
+    const [sessions,reactions,attention,events,investigationAnswers]=await Promise.all([
       sb('mc_sessions?select=*'),
       sb('mc_reactions?select=*'),
       sb('mc_attention?select=*'),
       sb('mc_feed_events?select=*'),
-      sb('mc_decision_answers?select=*')
+      sb('mc_investigation_answers?select=*')
     ]);
-    return {sessions:sessions||[],reactions:reactions||[],attention:attention||[],events:events||[],decisionAnswers:decisionAnswers||[],state};
+    return {sessions:sessions||[],reactions:reactions||[],attention:attention||[],events:events||[],investigationAnswers:investigationAnswers||[],state};
   }
   return {
     sessions:dg('mc_sessions',[]),
     reactions:Object.values(dg('mc_reactions',{})),
     attention:Object.values(dg('mc_attention',{})),
     events:dg('mc_events',[]),
-    decisionAnswers:Object.values(dg('mc_decision_answers',{})),
+    investigationAnswers:Object.values(dg('mc_investigation_answers',{})),
     state:dg('mc_state',{status:'waiting',reveal_stage:0,winning_theme:null,winning_group:'ALL',presentation_group:'ALL',closing_stage:1})
   };
 }
@@ -630,7 +642,7 @@ function filtered(data,group){
     reactions:base.reactions.filter(r=>ids.has(r.session_id)),
     attention:base.attention.filter(a=>ids.has(a.session_id)),
     events:base.events.filter(e=>ids.has(e.session_id)),
-    decisionAnswers:(base.decisionAnswers||[]).filter(a=>ids.has(a.session_id))
+    investigationAnswers:(base.investigationAnswers||[]).filter(a=>ids.has(a.session_id))
   };
 }
 
@@ -647,7 +659,7 @@ function currentRunData(data){
     reactions:(data.reactions||[]).filter(x=>ids.has(x.session_id)),
     attention:(data.attention||[]).filter(x=>ids.has(x.session_id)),
     events:(data.events||[]).filter(x=>ids.has(x.session_id)),
-    decisionAnswers:(data.decisionAnswers||[]).filter(x=>ids.has(x.session_id))
+    investigationAnswers:(data.investigationAnswers||[]).filter(x=>ids.has(x.session_id))
   };
 }
 
@@ -670,19 +682,7 @@ function metrics(d){
 
 function closingScene(stage){
   if(stage===1) return `<div class="closing-scene">
-    <div class="kicker">FECHAMENTO · 1/7</div>
-    <h2>Antes da pesquisa, você já tinha gerado dados.</h2>
-    <p>Ao navegar pelo feed, suas ações produziram registros mesmo sem a pergunta “qual é seu tema favorito?”.</p>
-    <div class="signal-grid">
-      <div class="signal-card"><div class="signal-icon">👁</div><b>Visualização</b><span>o que apareceu para você</span></div>
-      <div class="signal-card"><div class="signal-icon">⏱</div><b>Atenção</b><span>quanto tempo você permaneceu</span></div>
-      <div class="signal-card"><div class="signal-icon">👍</div><b>Interesse moderado</b><span>um sinal explícito</span></div>
-      <div class="signal-card"><div class="signal-icon">❤️</div><b>Interesse forte</b><span>um sinal explícito mais intenso</span></div>
-    </div>
-  </div>`;
-
-  if(stage===2) return `<div class="closing-scene">
-    <div class="kicker">FECHAMENTO · 2/7</div>
+    <div class="kicker">FECHAMENTO · 1/4</div>
     <h2>Ações viraram sinais. Sinais viraram padrões.</h2>
     <div class="concept-chain">
       <div class="concept-node">AÇÃO</div><div class="concept-arrow">→</div>
@@ -693,8 +693,8 @@ function closingScene(stage){
     <p>Um dado isolado diz pouco. Muitos registros organizados começam a revelar regularidades.</p>
   </div>`;
 
-  if(stage===3) return `<div class="closing-scene">
-    <div class="kicker">FECHAMENTO · 3/7</div>
+  if(stage===2) return `<div class="closing-scene">
+    <div class="kicker">FECHAMENTO · 2/4</div>
     <h2>O que você fez e o que você disse são dados diferentes.</h2>
     <div class="dual-grid">
       <div class="dual-card"><div class="kicker">COMPORTAMENTAL</div><strong>O que você FEZ</strong><p>visualizou · permaneceu · reagiu</p></div>
@@ -704,19 +704,8 @@ function closingScene(stage){
     <p>Comparar esses dois tipos de dado pode confirmar padrões — ou mostrar diferenças.</p>
   </div>`;
 
-  if(stage===4) return `<div class="closing-scene">
-    <div class="kicker">FECHAMENTO · 4/7</div>
-    <h2>Padrões permitem fazer inferências.</h2>
-    <div class="concept-chain">
-      <div class="concept-node">PADRÃO</div><div class="concept-arrow">→</div>
-      <div class="concept-node">PERFIL</div><div class="concept-arrow">→</div>
-      <div class="concept-node">RECOMENDAÇÃO</div>
-    </div>
-    <div class="profile-box"><strong>Importante:</strong> uma inferência não “descobre quem você é”. Ela produz uma hipótese de afinidade com base nos sinais disponíveis.</div>
-  </div>`;
-
-  if(stage===5) return `<div class="closing-scene">
-    <div class="kicker">FECHAMENTO · 5/7</div>
+  if(stage===3) return `<div class="closing-scene">
+    <div class="kicker">FECHAMENTO · 3/4</div>
     <h2>Quando um padrão começa a orientar uma ação?</h2>
     <div class="concept-chain">
       <div class="concept-node">PADRÃO</div><div class="concept-arrow">→</div>
@@ -732,21 +721,8 @@ function closingScene(stage){
     <p>É aqui que o dado deixa de apenas descrever o que aconteceu e passa a apoiar uma decisão.</p>
   </div>`;
 
-  if(stage===6) return `<div class="closing-scene">
-    <div class="kicker">FECHAMENTO · 6/7</div>
-    <h2>Por que os dados têm valor?</h2>
-    <p>Porque ajudam organizações a reduzir incerteza e escolher entre caminhos possíveis.</p>
-    <div class="value-grid">
-      <div class="value-card"><b>Recomendação</b><span>selecionar conteúdos mais relevantes</span></div>
-      <div class="value-card"><b>Segmentação</b><span>entender grupos com comportamentos diferentes</span></div>
-      <div class="value-card"><b>Publicidade</b><span>direcionar mensagens a públicos específicos</span></div>
-      <div class="value-card"><b>Produto</b><span>decidir o que melhorar, criar ou priorizar</span></div>
-    </div>
-    <p style="font-size:14px">O valor pode estar no uso dos dados para orientar decisões — não necessariamente na venda dos dados.</p>
-  </div>`;
-
-  return `<div class="closing-scene">
-    <div class="kicker">FECHAMENTO · 7/7</div>
+return `<div class="closing-scene">
+    <div class="kicker">FECHAMENTO · 4/4</div>
     <div class="final-definition">DATA DRIVEN é tomar <span>decisões orientadas por evidências.</span></div>
     <div class="concept-chain">
       <div class="concept-node">INVESTIGAR</div><div class="concept-arrow">→</div>
@@ -758,6 +734,22 @@ function closingScene(stage){
   </div>`;
 }
 
+function mcEscapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function mcTeamDecisionSummary(d,chosen){
+  const ranked=ranking(d.reactions||[],d.attention||[]);
+  const total=ranked.reduce((sum,x)=>sum+(Number(x.score)||0),0);
+  const theme=chosen||((total>0&&ranked[0])?ranked[0].theme:null);
+  const item=ranked.find(x=>x.theme===theme);
+  const share=total>0&&item?Math.round((Number(item.score)||0)*100/total):null;
+  const q1=(d.investigationAnswers||[]).filter(x=>x.question_id==='q1'&&(x.theme_slug===THEME_TO_SLUG[theme]||x.theme===theme)).map(x=>Number(x.answer)).filter(x=>Number.isFinite(x)&&x>=1&&x<=5);
+  const pos=q1.filter(x=>x>=4).length;
+  return {
+    action:total>0&&theme?'Priorizar um conteúdo-piloto sobre '+theme+' e medir a resposta do público.':'Aguardar evidências suficientes antes de definir uma prioridade.',
+    evidenceOne:share===null?'Ainda não há reações suficientes para fundamentar o ranking.':theme+' reuniu '+share+'% da pontuação de interesse ponderada.',
+    evidenceTwo:q1.length?pos+' de '+q1.length+' participantes ('+Math.round(100*pos/q1.length)+'%) indicaram interesse alto (4 ou 5/5).':'Ainda não há respostas declaradas suficientes para comparar.',
+    limitation:'Decisão exploratória da equipe: a amostra é local e não representa todo o público.'
+  };
+}
 function sceneHtml(d){
  const st=latest.state||{status:'waiting',reveal_stage:0}, stage=st.reveal_stage||0;
  // Estados do feed não dependem de métricas: refletem imediatamente o comando do professor.
@@ -787,51 +779,17 @@ function sceneHtml(d){
  // Só calcula indicadores e ranking nas cenas que realmente exigem esses dados.
  const m=metrics(d), r=ranking(d.reactions,d.attention);
  if(st.status==='closing_reveal') return closingScene(st.closing_stage||1);
- if(st.status==='decide_preview'){
-   const dec=DECISION[st.winning_theme];
-   return `<div class="decide-question"><div class="kicker">DECIDA · APRESENTAÇÃO</div><h2>${dec?.title||'Hora de decidir'}</h2>
-     <div class="decide-context-telao">
-       <div><b>OBJETIVO</b><span>${dec?.objective||''}</span></div>
-       <div><b>RESTRIÇÃO</b><span>${dec?.constraint||''}</span></div>
+ if(['decide_preview','decide_open','decide_reveal'].includes(st.status)){
+   const summary=mcTeamDecisionSummary(d,st.winning_theme);
+   return `<div class="mc-team-decision">
+     <div class="kicker">DECIDA · NOSSA PROPOSTA</div>
+     <h2>Que decisão os dados orientam?</h2>
+     <div class="mc-team-action">${mcEscapeHtml(summary.action)}</div>
+     <div class="mc-team-evidence">
+       <div><strong>01 · DADOS DO FEED</strong><span>${mcEscapeHtml(summary.evidenceOne)}</span></div>
+       <div><strong>02 · DADOS DECLARADOS</strong><span>${mcEscapeHtml(summary.evidenceTwo)}</span></div>
      </div>
-     <p>${dec?.prompt||'Use os dados para tomar uma decisão.'}</p></div>`;
- }
- if(st.status==='decide_open'){
-   const dec=DECISION[st.winning_theme];
-   return `<div class="decide-question"><div class="kicker">DECIDA</div><h2>${dec?.title||'Hora de decidir'}</h2>
-     <div class="decide-context-telao">
-       <div><b>OBJETIVO</b><span>${dec?.objective||''}</span></div>
-       <div><b>RESTRIÇÃO</b><span>${dec?.constraint||''}</span></div>
-     </div>
-     <p>${dec?.prompt||'Use os dados para tomar uma decisão.'}</p><p style="color:#fff;font-weight:900">Escolha uma estratégia e duas evidências no seu dispositivo.</p></div>`;
- }
- if(st.status==='decide_reveal'){
-   const dec=DECISION[st.winning_theme];
-   const rows=d.decisionAnswers||[];
-   const counts={};
-   (dec?.options||[]).forEach(o=>counts[o.code]=0);
-   rows.forEach(x=>counts[x.choice_code]=(counts[x.choice_code]||0)+1);
-   const total=Math.max(1,rows.length);
-   const topCode=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0]?.[0]||null;
-   const supportIndex=code=>{
-     const strengths=rows.filter(r=>r.choice_code===code)
-       .flatMap(r=>(Array.isArray(r.evidence_json)?r.evidence_json:[]).map(e=>Number(e.strength)).filter(Number.isFinite));
-     return strengths.length?Math.round(strengths.reduce((a,b)=>a+b,0)/strengths.length):0;
-   };
-   return `<div class="decide-question"><div class="kicker">DECIDA · RESULTADO</div><h2>Qual estratégia o público escolheu?</h2>
-     <div class="vote-bars">
-       ${(dec?.options||[]).map(opt=>{
-         const p=Math.round(100*(counts[opt.code]||0)/total);
-         const support=supportIndex(opt.code);
-         const top=rows.length && opt.code===topCode;
-         return `<div class="vote-row ${top?'top-choice':''}">
-           <div class="vote-text">${opt.text}${top?'<span class="choice-tag">(mais votada)</span>':''}</div>
-           <div class="vote-metrics"><div class="vote-share">${rows.length?p:0}%</div><div class="support-score">sustentação ${support}%</div></div>
-         </div>`;
-       }).join('')}
-     </div>
-     <p>Uma estratégia pode ser popular e, ao mesmo tempo, ter diferentes níveis de sustentação nos dados.</p>
-     <p class="support-explain">Índice de sustentação = média da força das evidências selecionadas pelos participantes que defenderam cada estratégia. Não é probabilidade nem nota de acerto.</p>
+     <p class="mc-team-limit">${mcEscapeHtml(summary.limitation)}</p>
    </div>`;
  }
  if(st.status==='investigation_preview') return `<div class="kicker">INVESTIGUE · PREPARAÇÃO</div><h2>O tema escolhido pelo público é</h2><h1 class="winner">${st.winning_theme||r[0]?.theme||'—'}</h1><p>Gostar do tema ainda nos diz muito pouco.</p><p style="color:#fff;font-weight:850">Vamos formular novas perguntas antes de liberar as respostas.</p>`;
