@@ -1504,13 +1504,58 @@ async function startClosing(){
   setTimedStage('FECHAMENTO');
   await writeState({status:'closing_reveal',closing_stage:1});
 }
+const MC_CLOSING_LAST=7;
+const mcClosingClamp=n=>Math.max(1,Math.min(MC_CLOSING_LAST,Math.floor(Number(n)||1)));
+let mcClosingNavigationBusy=false;
 async function closingStep(delta){
-  const action=delta<0?'closingPrev':'closingNext';
-  if(!await requireAction(action,'Os controles do fechamento funcionam somente durante o FECHAMENTO.'))return;
-  const s=(await getAll()).state||{};
-  const current=s.closing_stage||1;
-  const next=Math.max(1,Math.min(7,current+delta));
-  await writeState({status:'closing_reveal',closing_stage:next});
+  if(mcClosingNavigationBusy)return;
+  mcClosingNavigationBusy=true;
+  const prevBtn=document.getElementById('closingPrev');
+  const nextBtn=document.getElementById('closingNext');
+  if(prevBtn)prevBtn.disabled=true;
+  if(nextBtn)nextBtn.disabled=true;
+  try{
+    const direction=delta<0?-1:1;
+    if(remoteEnabled()){
+      // Consulta somente o estado: evita sete requisições desnecessárias a cada clique.
+      const rows=await sb('mc_experiment_state?id=eq.main&select=status,closing_stage,run_id');
+      const current=rows&&rows[0];
+      if(!current||current.status!=='closing_reveal')throw Error('O fechamento não está ativo.');
+      const raw=Math.floor(Number(current.closing_stage)||1);
+      // Rodadas antigas podem estar na cena 8 ou 9; ambas equivalem à atual 7.
+      const next=mcClosingClamp(mcClosingClamp(raw)+direction);
+      if(next!==raw){
+        const path='mc_experiment_state?id=eq.main&status=eq.closing_reveal'
+          +'&run_id=eq.'+encodeURIComponent(current.run_id)
+          +'&closing_stage=eq.'+raw
+          +'&select=closing_stage';
+        const changed=await sb(path,{
+          method:'PATCH',
+          headers:{'Prefer':'return=representation','x-mc-control':ensureProfessorControlKey()},
+          body:JSON.stringify({closing_stage:next,updated_at:new Date().toISOString()})
+        });
+        if(!Array.isArray(changed)||changed.length!==1){
+          throw Error('A cena foi alterada em outra tela. Atualize e tente novamente.');
+        }
+      }
+    }else{
+      const state=latest?.state||(await getAll()).state;
+      if(state.status!=='closing_reveal')throw Error('O fechamento não está ativo.');
+      const next=mcClosingClamp(mcClosingClamp(state.closing_stage)+direction);
+      ds('mc_state',{...state,closing_stage:next,updated_at:new Date().toISOString()});
+    }
+    await refresh();
+  }catch(err){
+    console.error('Falha ao navegar no fechamento:',err);
+    alert('Não foi possível alterar a cena do fechamento. '+(err?.message||'Confira a conexão e o acesso do professor.'));
+    await refresh().catch(()=>{});
+  }finally{
+    mcClosingNavigationBusy=false;
+    const isClosing=latest?.state?.status==='closing_reveal';
+    const stage=mcClosingClamp(latest?.state?.closing_stage);
+    if(prevBtn)prevBtn.disabled=!isClosing||stage<=1;
+    if(nextBtn)nextBtn.disabled=!isClosing||stage>=MC_CLOSING_LAST;
+  }
 }
 
 
@@ -1640,8 +1685,9 @@ function updateReadiness(d){
   if(prev)prev.disabled=state.status!=='results_reveal'||(state.reveal_stage||1)<=1;
   if(next)next.disabled=state.status!=='results_reveal'||(state.reveal_stage||1)>=6;
   const cp=document.getElementById('closingPrev'),cn=document.getElementById('closingNext');
-  if(cp)cp.disabled=state.status!=='closing_reveal'||(state.closing_stage||1)<=1;
-  if(cn)cn.disabled=state.status!=='closing_reveal'||(state.closing_stage||1)>=7;
+  const closingStage=mcClosingClamp(state.closing_stage);
+  if(cp)cp.disabled=mcClosingNavigationBusy||state.status!=='closing_reveal'||closingStage<=1;
+  if(cn)cn.disabled=mcClosingNavigationBusy||state.status!=='closing_reveal'||closingStage>=MC_CLOSING_LAST;
 }
 function scoreMap(reactions){return reactionScoreMap(reactions)}
 function percent(v,total){return total?Math.round(v*1000/total)/10:0}
@@ -1803,7 +1849,7 @@ function renderMirror(d){
     return;
   }
   if(st.status==='closing_reveal'){
-    const n=st.closing_stage||1;
+    const n=mcClosingClamp(st.closing_stage);
     box.innerHTML=`<div class="mirror-kicker">FECHAMENTO · ${n}/7</div><div class="mirror-title">${CLOSING_TITLES[n]||'Fechamento pedagógico'}</div>`;
     return;
   }
@@ -1824,7 +1870,7 @@ function render(){
  completion.textContent=d.sessions.length?Math.round(100*d.sessions.filter(s=>s.feed_completed_at).length/d.sessions.length)+'%':'0%';
  const st = latest.state.status || 'waiting';
  const revealStage = latest.state.reveal_stage || 1;
- const closingStage = latest.state.closing_stage || 1;
+ const closingStage = mcClosingClamp(latest.state.closing_stage);
  let sceneTitle='Aguardando início', sceneSub='Experiência ainda não iniciada', badgeLabel='cena', badgeValue='0';
 
  if(st==='feed_open'){ sceneTitle='Feed aberto'; sceneSub='Os participantes podem explorar o feed.'; badgeLabel='modo'; badgeValue='FEED'; }
@@ -1845,8 +1891,8 @@ function render(){
 
  document.getElementById('revealPrev').disabled = st!=='results_reveal' || revealStage<=1;
  document.getElementById('revealNext').disabled = st!=='results_reveal' || revealStage>=6;
- document.getElementById('closingPrev').disabled = st!=='closing_reveal' || closingStage<=1;
- document.getElementById('closingNext').disabled = st!=='closing_reveal' || closingStage>=7;
+ document.getElementById('closingPrev').disabled = mcClosingNavigationBusy || st!=='closing_reveal' || closingStage<=1;
+ document.getElementById('closingNext').disabled = mcClosingNavigationBusy || st!=='closing_reveal' || closingStage>=MC_CLOSING_LAST;
 
  const win=latest.state.winning_theme||'—';
  document.getElementById('winningTheme').textContent=win;
