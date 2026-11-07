@@ -630,7 +630,7 @@ input#expectedCount:disabled{opacity:.72;cursor:not-allowed;}
 </style><style id="mc-control-modes-css">
 .mc-mode-picker{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:10px}
 .mc-mode-choice{display:flex!important;gap:9px;align-items:flex-start;padding:12px 14px;border-radius:12px;border:1px solid #6b8d96;background:#0e2931;cursor:pointer;line-height:1.3}
-.mc-mode-choice:has(input:checked){border:2px solid #f39843;background:#183b43}
+.mc-mode-choice.is-selected,.mc-mode-choice:has(input:checked){border:2px solid #f39843;background:#183b43}
 .mc-mode-choice input{accent-color:#f39843!important;min-width:19px!important;width:19px!important;height:19px!important;margin:2px 3px 0 0!important;padding:0!important}
 .mc-mode-choice strong{display:block;font-size:14px;color:white}.mc-mode-choice small{display:block;color:#c8dddf;margin-top:4px;font-size:11px}
 .mc-presence{font-size:12px;line-height:1.5;color:#d5e7e8;background:#113039;border:1px solid #345c65;border-radius:9px;padding:9px 11px;margin-top:9px}
@@ -1604,15 +1604,19 @@ function updateReadiness(d){
   setReady('readyFeed',feedStatus,feedLabel);
   setReady('readyReveal',state.status==='feed_closed'?(automatic?r.feedCompletion:'ok'):r.reveal,
     state.status==='feed_closed'?'feed encerrado':target>0?`${metrics.feedDone}/${target} terminaram o feed`:'aguarde');
-  setReady('readyInvestigate',r.investigatePreview,r.investigatePreview==='warn'?'avance até 6/6':r.investigatePreview==='ok'?'cena 6/6':'aguarde');
+  setReady('readyInvestigate',!automatic && M9Engine.canAction('previewInvestigation',state,r)?'ok':r.investigatePreview,
+    r.investigatePreview==='warn'?'avance até 6/6':r.investigatePreview==='ok'?'cena 6/6':'aguarde');
   setReady('readyInvestigateRelease',r.investigateRelease,state.status==='investigation_open'?'liberado':r.investigateRelease==='ok'?'apresentado':'bloqueado');
 
-  setReady('readyDecide',r.decide,target>0?`${metrics.investDone}/${target} investigações completas`:'aguarde');
+  setReady('readyDecide',!automatic && M9Engine.canAction('previewDecide',state,r)?'ok':r.decide,
+    target>0?`${metrics.investDone}/${target} investigações completas`:'controle manual');
   const releaseStatus=state.status==='decide_preview'||state.status==='decide_open'?'ok':'no';
   setReady('readyDecideRelease',releaseStatus,state.status==='decide_open'?'liberado':releaseStatus==='ok'?'apresentado':'bloqueado');
 
-  setReady('readyDecisionReveal',r.decisionReveal,target>0?`${metrics.decisionDone}/${target} decisões completas`:'aguarde');
-  setReady('readyClosing',r.closing,target>0?`${metrics.decisionDone}/${target} decisões registradas`:'aguarde');
+  setReady('readyDecisionReveal',!automatic && M9Engine.canAction('revealDecide',state,r)?'ok':r.decisionReveal,
+    target>0?`${metrics.decisionDone}/${target} decisões completas`:'controle manual');
+  setReady('readyClosing',!automatic && M9Engine.canAction('startClosing',state,r)?'ok':r.closing,
+    target>0?`${metrics.decisionDone}/${target} decisões registradas`:'controle manual');
 
   const allow=(action)=>M9Engine.canAction(action,state,r);
   const lock=(id,ok,reason)=>{
