@@ -1126,10 +1126,14 @@ window.M9_DATA = {
       ? (stage>=6?'ok':'warn')
       : ['investigation_preview','investigation_open','decide_preview','decide_open','decide_reveal','closing_reveal'].includes(st)
         ? 'ok' : 'no';
-    const investigateRelease=st==='investigation_preview'?'ok':'no';
+    const afterInvestigation=['investigation_preview','investigation_open',
+      'decide_preview','decide_open','decide_reveal','closing_reveal'].includes(st);
+    const investigateRelease=afterInvestigation?'ok':'no';
     // Os 12 itens do INVESTIGUE devem estar efetivamente gravados por participante.
     const investigationComplete=complete(investDone,investAnswers>=target*12);
-    const decide=['investigation_open','decide_preview','decide_open','decide_reveal','closing_reveal'].includes(st)?investigationComplete:'no';
+    // Uma etapa já apresentada não deve voltar a aparecer bloqueada.
+    const decide=['decide_preview','decide_open','decide_reveal','closing_reveal'].includes(st)
+      ? 'ok' : st==='investigation_open'?investigationComplete:'no';
     const decisionReveal='no';
     const closing=['decide_preview','decide_open','decide_reveal','closing_reveal'].includes(st)?'ok':'no';
     return {feed,feedCompletion,reveal,investigatePreview,investigateRelease,
@@ -1342,8 +1346,20 @@ async function writeState(patch){
  // usamos conclusões gravadas para não perder participantes por timeout.
 function mcStageMetrics(d,state){
   const status=state?.status||'waiting';
-  const isFeed=['waiting','feed_open','feed_paused'].includes(status);
-  const eligible=isFeed?activeSubset(d):d;
+  const active=activeSubset(d);
+  let eligible=d;
+  if(status==='waiting')eligible=active;
+  else if(['feed_open','feed_paused'].includes(status)){
+    // Quem concluiu o feed permanece contabilizado, mesmo se o celular
+    // perder o heartbeat. Sessões abandonadas sem conclusão não contam.
+    const ids=new Set(active.sessions.map(s=>s.id));
+    d.sessions.filter(s=>s.feed_completed_at).forEach(s=>ids.add(s.id));
+    const filter=rows=>(rows||[]).filter(row=>ids.has(row.session_id));
+    eligible={...d,sessions:d.sessions.filter(s=>ids.has(s.id)),
+      reactions:filter(d.reactions),attention:filter(d.attention),
+      events:filter(d.events),investigationAnswers:filter(d.investigationAnswers),
+      decisionAnswers:filter(d.decisionAnswers)};
+  }
   return {
     total:eligible.sessions.length,
     feedDone:eligible.sessions.filter(s=>s.feed_completed_at).length,
@@ -1414,13 +1430,26 @@ async function startReveal(){
   setTimedStage('REVELE');
   await writeState({status:'results_reveal',reveal_stage:1,presentation_group:group});
 }
+let mcRevealNavigationBusy=false;
 async function stepReveal(delta){
-  const action=delta<0?'revealPrev':'revealNext';
-  if(!await requireAction(action,'Os controles de cena funcionam somente durante o REVELE.'))return;
-  const s=(await getAll()).state||{};
-  const current=s.reveal_stage||1;
-  const stage=Math.max(1,Math.min(6,current+delta));
-  await writeState({status:'results_reveal',reveal_stage:stage});
+  if(mcRevealNavigationBusy)return;
+  mcRevealNavigationBusy=true;
+  const prev=document.getElementById('revealPrev'),next=document.getElementById('revealNext');
+  if(prev)prev.disabled=true;
+  if(next)next.disabled=true;
+  try{
+    const action=delta<0?'revealPrev':'revealNext';
+    const ctx=await requireAction(action,'Os controles de cena funcionam somente durante o REVELE.');
+    if(!ctx)return;
+    const stage=Math.max(1,Math.min(6,(Number(ctx.state.reveal_stage)||1)+(delta<0?-1:1)));
+    if(stage!==ctx.state.reveal_stage)await writeState({status:'results_reveal',reveal_stage:stage});
+  }catch(err){
+    console.error('Erro na navegação do REVELE:',err);
+    alert('Não foi possível mudar a cena do REVELE. Verifique a conexão e tente novamente.');
+  }finally{
+    mcRevealNavigationBusy=false;
+    await refresh().catch(()=>{});
+  }
 }
 async function previewInvestigation(){
   const ctx=await requireAction('previewInvestigation','Chegue à cena 6 do REVELE antes de apresentar o INVESTIGUE.');
@@ -1633,12 +1662,12 @@ function updateReadiness(d){
     el.closest('.mc-mode-choice')?.classList.toggle('is-selected',el.checked);
   });
   const presence=document.getElementById('mcParticipantPresence');
-  if(presence)presence.textContent='Ativos: '+metrics.total+
-    '  |  Registros sem atividade recente: '+Math.max(0,d.sessions.length-metrics.total)+
+  if(presence)presence.textContent='Ativos: '+live.sessions.length+
+    '  |  Registros sem atividade recente: '+Math.max(0,d.sessions.length-live.sessions.length)+
     '  |  Meta atual: '+(target||'não definida');
   const description=document.getElementById('mcModeDescription');
   if(description)description.textContent=automatic
-    ? 'Automático: considera apenas sessões ativas e usa a meta atual. Etapas explicativas permanecem sob apresentação do professor.'
+    ? 'Automático: considera presenças recentes e conclusões registradas, conforme a meta atual. As etapas expositivas são conduzidas pelo professor.'
     : 'Manual: a quantidade é informativa; o professor abre, pausa, encerra e conduz as etapas.';
 
   const duringFeed=['feed_open','feed_paused','feed_closed'].includes(state.status);
@@ -1656,7 +1685,9 @@ function updateReadiness(d){
     r.reveal==='ok'?'revelação iniciada':state.status==='feed_closed'?'feed encerrado':target>0?`${metrics.feedDone}/${target} terminaram o feed`:'aguarde');
   setReady('readyInvestigate',M9Engine.canAction('previewInvestigation',state,r)?'ok':r.investigatePreview,
     r.investigatePreview==='warn'?'avance até 6/6':r.investigatePreview==='ok'?'pronto para apresentar':'aguarde');
-  setReady('readyInvestigateRelease',r.investigateRelease,state.status==='investigation_open'?'liberado':r.investigateRelease==='ok'?'apresentado':'bloqueado');
+  setReady('readyInvestigateRelease',r.investigateRelease,
+    ['investigation_open','decide_preview','decide_open','decide_reveal','closing_reveal'].includes(state.status)
+      ? 'respostas liberadas' : r.investigateRelease==='ok'?'apresentado':'aguarde');
 
   setReady('readyDecide',!automatic && M9Engine.canAction('previewDecide',state,r)?'ok':r.decide,
     automatic?metrics.investDone+'/'+target+' investigações concluídas':'apresentação conduzida pela equipe');
@@ -1678,8 +1709,8 @@ function updateReadiness(d){
   lock('startClosingBtn',allow('startClosing'),'Apresente primeiro a decisão da equipe.');
 
   const prev=document.getElementById('revealPrev'),next=document.getElementById('revealNext');
-  if(prev)prev.disabled=state.status!=='results_reveal'||(state.reveal_stage||1)<=1;
-  if(next)next.disabled=state.status!=='results_reveal'||(state.reveal_stage||1)>=6;
+  if(prev)prev.disabled=mcRevealNavigationBusy||state.status!=='results_reveal'||(state.reveal_stage||1)<=1;
+  if(next)next.disabled=mcRevealNavigationBusy||state.status!=='results_reveal'||(state.reveal_stage||1)>=6;
   const cp=document.getElementById('closingPrev'),cn=document.getElementById('closingNext');
   const closingStage=mcClosingClamp(state.closing_stage);
   if(cp)cp.disabled=mcClosingNavigationBusy||state.status!=='closing_reveal'||closingStage<=1;
@@ -1869,8 +1900,8 @@ function render(){
  document.getElementById('sceneBadgeLabel').textContent=badgeLabel;
  document.getElementById('sceneBadgeValue').textContent=badgeValue;
 
- document.getElementById('revealPrev').disabled = st!=='results_reveal' || revealStage<=1;
- document.getElementById('revealNext').disabled = st!=='results_reveal' || revealStage>=6;
+ document.getElementById('revealPrev').disabled = mcRevealNavigationBusy || st!=='results_reveal' || revealStage<=1;
+ document.getElementById('revealNext').disabled = mcRevealNavigationBusy || st!=='results_reveal' || revealStage>=6;
  document.getElementById('closingPrev').disabled = mcClosingNavigationBusy || st!=='closing_reveal' || closingStage<=1;
  document.getElementById('closingNext').disabled = mcClosingNavigationBusy || st!=='closing_reveal' || closingStage>=MC_CLOSING_LAST;
 
