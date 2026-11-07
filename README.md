@@ -1,31 +1,35 @@
 # Mostra Científica 2026 — Data Driven
 
-Experiência interativa coletiva de letramento em dados, com três interfaces:
+Aplicação interativa da Mostra Científica 2026, com três páginas independentes:
 
-- [Participantes](participantes.html) — acesso do público via celular;
-- [Professor](professor.html) — condução das etapas mediante autenticação;
-- [Telão](telao.html) — projeção e QR Code de entrada.
+- [Participantes](participantes.html) — entrada de visitantes pelo celular;
+- [Professor](professor.html) — painel de condução e controle das etapas;
+- [Telão](telao.html) — apresentação coletiva e QR Code de entrada.
 
-## Publicação
+## Como ativar o site (GitHub Pages)
 
-O fluxo GitHub Actions em `.github/workflows/publicar-pages.yml` publica a branch `main` no GitHub Pages.
-Se a publicação não iniciar, abra **Settings > Pages** e configure **Source: GitHub Actions**.
+1. Na conta `profprogerios`, abra **Settings → Pages** deste repositório.
+2. Em **Build and deployment → Source**, selecione **Deploy from a branch**.
+3. Em **Branch**, escolha **main** e a pasta **/(root)**.
+4. Clique em **Save**.
+5. Aguarde o GitHub indicar **Your site is live** e teste os endereços abaixo.
 
-Endereço público previsto:
-https://profprogerios.github.io/mostra-cientifica-2026/participantes.html
+A aplicação é HTML/CSS/JavaScript estático, portanto não precisa de um workflow personalizado GitHub Actions. O fluxo antigo foi removido após apresentar um erro de autorização ao tentar ativar o Pages automaticamente.
 
-O QR Code do telão detecta automaticamente esse endereço quando o telão é acessado pelo GitHub Pages.
+## Endereços (depois da ativação)
 
-## Banco
+- Participantes: https://profprogerios.github.io/mostra-cientifica-2026/participantes.html
+- Professor: https://profprogerios.github.io/mostra-cientifica-2026/professor.html
+- Telão: https://profprogerios.github.io/mostra-cientifica-2026/telao.html
 
-As três interfaces preservam a configuração do Supabase `missao9-data-driven-v2`.
-Chave `publishable` é pública; **nunca** adicione `service_role` ou segredo do banco ao HTML.
-O professor deve utilizar o PIN de controle existente, validado por política do banco.
+O QR Code exibido no telão aponta para **participantes.html** no endereço acima.
 
-## Uso
+## Banco de dados e segurança
 
-1. Abrir `professor.html` no computador do responsável.
-2. Projetar `telao.html` e orientar o acesso dos participantes pelo QR Code.
-3. Testar uma rodada completa em múltiplos aparelhos antes do evento.
+Os arquivos continuam configurados para o projeto Supabase existente, usando as tabelas `mc_*`.
+A liberação dos controles do professor deve ser validada no Supabase.
+Não coloque credenciais privadas do banco ou outros segredos no HTML público.
 
-Se o QR mostrar mensagem de configuração, confira se o telão foi aberto pelo endereço HTTPS publicado, e não pelo arquivo local.
+## Teste antes do evento
+
+Verifique a entrada via QR Code em vários celulares, a sincronização com o painel do professor, a atualização do telão e os bloqueios das etapas. Um arquivo publicado não garante, isoladamente, que a rodada coletiva esteja funcional.
