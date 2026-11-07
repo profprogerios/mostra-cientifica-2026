@@ -964,7 +964,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 
       <div class="analytics-card">
         <div class="eyebrow">DECIDA · EQUIPE EXPOSITORA</div>
-        <h3>Nossa proposta orientada por evidências</h3>
+        <h3>Nossa recomendação orientada por evidências</h3>
         <div id="aDecisionContext" class="decision-context-mini"></div>
         <div id="aDecisionResult" class="result-list"></div>
         <div class="sample-note" style="margin-top:10px">Duas fontes de evidências da rodada:</div>
@@ -1702,7 +1702,7 @@ function renderAnalytics(){
 
   const summary=mcTeamDecisionSummary(d,latest.state.winning_theme||theme);
   document.getElementById('aDecisionContext').innerHTML=
-    '<div><b>Proposta da equipe</b>'+mcHtml(summary.action)+'</div>'+
+    '<div><b>Recomendação da equipe</b>'+mcHtml(summary.action)+'</div>'+
     '<div><b>Limitação da inferência</b>'+mcHtml(summary.limitation)+'</div>';
   document.getElementById('aDecisionResult').innerHTML=
     '<div class="result-row"><div class="result-label">'+
@@ -1735,10 +1735,10 @@ function mcTeamDecisionSummary(d,chosen){
   const q1=(d.investigationAnswers||[]).filter(x=>x.question_id==='q1'&&(x.theme_slug===THEME_TO_SLUG[theme]||x.theme===theme)).map(x=>Number(x.answer)).filter(x=>Number.isFinite(x)&&x>=1&&x<=5);
   const pos=q1.filter(x=>x>=4).length;
   return {theme,
-    action:total>0&&theme?'Priorizar um conteúdo-piloto sobre '+theme+' e medir a resposta do público.':'Aguardar evidências suficientes antes de definir uma prioridade.',
+    action:total>0&&theme?'Nossa indicação seria priorizar um conteúdo-piloto sobre '+theme+' e medir a resposta do público.':'Nossa indicação seria coletar mais dados antes de definir uma prioridade.',
     evidenceOne:share===null?'Feed: ainda não há reações suficientes.':'Feed: '+theme+' reuniu '+share+'% da pontuação de interesse ponderada.',
     evidenceTwo:q1.length?'Investigação: '+pos+' de '+q1.length+' participantes ('+Math.round(100*pos/q1.length)+'%) indicaram interesse alto (4 ou 5/5).':'Investigação: ainda não há respostas declaradas para comparar.',
-    limitation:'Proposta exploratória: a amostra é local e não representa todo o público.'
+    limitation:'Recomendação exploratória da equipe: esta amostra é local e não representa todo o público.'
   };
 }
 function renderMirror(d){
@@ -1790,7 +1790,7 @@ function renderMirror(d){
   }
   if(['decide_preview','decide_open','decide_reveal'].includes(st.status)){
     const dsum=mcTeamDecisionSummary(d,st.winning_theme);
-    box.innerHTML='<div class="mirror-kicker">DECIDA · EQUIPE</div>'+
+    box.innerHTML='<div class="mirror-kicker">DECIDA · RECOMENDAÇÃO</div>'+
       '<div class="mirror-title" style="font-size:14px">'+mcHtml(dsum.action)+'</div>'+
       '<div class="mirror-sub">'+mcHtml(dsum.evidenceOne)+'<br>'+mcHtml(dsum.evidenceTwo)+'</div>';
     return;
