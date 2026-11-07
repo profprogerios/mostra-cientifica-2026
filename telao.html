@@ -3,14 +3,14 @@
 <title>Mostra Científica 2026 — Telão</title>
 <style>
 /* DECIDA expressa: ação concreta, duas evidências e limite interpretativo. */
-.mc-team-decision{width:min(1120px,92vw);margin:auto;display:flex;flex-direction:column;align-items:center;gap:clamp(12px,1.8vh,24px)}
-.mc-team-decision h2{font-size:clamp(25px,3.2vw,45px);line-height:1.18;margin:0;max-width:1050px}
-.mc-team-action{font-size:clamp(21px,2.85vw,40px);font-weight:900;line-height:1.15;color:#fff;border:1px solid rgba(241,138,42,.55);background:rgba(241,138,42,.09);padding:clamp(18px,2.5vw,30px);border-radius:22px;max-width:1040px}
-.mc-team-evidence{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;width:100%;text-align:left}
-.mc-team-evidence>div{display:flex;flex-direction:column;gap:10px;background:rgba(255,255,255,.055);padding:clamp(15px,2vw,24px);border-radius:17px;min-width:0}
-.mc-team-evidence strong{color:#ffc16a;font-size:clamp(13px,1.25vw,18px);letter-spacing:.05em}
-.mc-team-evidence span{font-size:clamp(16px,1.8vw,25px);line-height:1.25}
-.mc-team-limit{font-size:clamp(13px,1.2vw,17px);max-width:1100px}
+.mc-team-decision{width:min(1080px,90vw);margin:auto;display:flex;flex-direction:column;align-items:center;gap:clamp(8px,1.3vh,14px);padding-block:clamp(2px,.6vh,6px);max-height:calc(100dvh - 110px)}
+.mc-team-decision h2{font-size:clamp(20px,2.5vw,36px);line-height:1.13;margin:0;max-width:980px}
+.mc-team-action{font-size:clamp(18px,2.2vw,34px);font-weight:900;line-height:1.14;color:#fff;border:1px solid rgba(241,138,42,.55);background:rgba(241,138,42,.09);padding:clamp(12px,1.6vw,20px);border-radius:20px;max-width:980px}
+.mc-team-evidence{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;width:100%;text-align:left}
+.mc-team-evidence>div{display:flex;flex-direction:column;gap:7px;background:rgba(255,255,255,.055);padding:clamp(10px,1.4vw,18px);border-radius:17px;min-width:0}
+.mc-team-evidence strong{color:#ffc16a;font-size:clamp(12px,1.05vw,16px);letter-spacing:.05em}
+.mc-team-evidence span{font-size:clamp(14px,1.45vw,22px);line-height:1.22}
+.mc-team-decision .mc-team-limit{font-size:clamp(12px,1vw,16px);line-height:1.2;max-width:980px;margin:2px auto 0;color:#b4c9cb}
 @media(max-width:700px){.mc-team-evidence{grid-template-columns:1fr;gap:8px}}
 
 :root{--petrol:#0a252c;--petrol2:#06191e;--orange:#f18a2a;--white:#f7f8f5;--muted:#9fb1b5}
@@ -744,7 +744,7 @@ function mcTeamDecisionSummary(d,chosen){
   const q1=(d.investigationAnswers||[]).filter(x=>x.question_id==='q1'&&(x.theme_slug===THEME_TO_SLUG[theme]||x.theme===theme)).map(x=>Number(x.answer)).filter(x=>Number.isFinite(x)&&x>=1&&x<=5);
   const pos=q1.filter(x=>x>=4).length;
   return {
-    action:total>0&&theme?'Nossa indicação seria priorizar um conteúdo-piloto sobre '+theme+' e medir a resposta do público.':'Nossa indicação seria coletar mais dados antes de definir uma prioridade.',
+    action:total>0&&theme?'Priorizar um conteúdo-piloto sobre '+theme+' e medir a resposta do público.':'Coletar mais dados antes de definir uma prioridade.',
     evidenceOne:share===null?'Ainda não há reações suficientes para fundamentar o ranking.':theme+' reuniu '+share+'% da pontuação de interesse ponderada.',
     evidenceTwo:q1.length?pos+' de '+q1.length+' participantes ('+Math.round(100*pos/q1.length)+'%) indicaram interesse alto (4 ou 5/5).':'Ainda não há respostas declaradas suficientes para comparar.',
     limitation:'Recomendação exploratória da equipe: esta amostra é local e não representa todo o público.'
@@ -783,7 +783,7 @@ function sceneHtml(d){
    const summary=mcTeamDecisionSummary(d,st.winning_theme);
    return `<div class="mc-team-decision">
      <div class="kicker">DECIDA · NOSSA RECOMENDAÇÃO</div>
-     <h2>Se precisássemos recomendar uma ação com base nestes dados...</h2>
+     <h2>Com base nestes dados, nossa recomendação seria:</h2>
      <div class="mc-team-action">${mcEscapeHtml(summary.action)}</div>
      <div class="mc-team-evidence">
        <div><strong>01 · DADOS DO FEED</strong><span>${mcEscapeHtml(summary.evidenceOne)}</span></div>
