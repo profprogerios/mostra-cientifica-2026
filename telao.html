@@ -1007,7 +1007,7 @@ function sceneHtml(d){
  }
  if(st.status==='investigation_preview') return `<div class="kicker">INVESTIGUE · PREPARAÇÃO</div><h2>O tema escolhido pelo público é</h2><h1 class="winner">${st.winning_theme||r[0]?.theme||'—'}</h1><p>Gostar do tema ainda nos diz muito pouco.</p><p style="color:#fff;font-weight:850">Vamos formular novas perguntas antes de liberar as respostas.</p>`;
  if(st.status==='investigation_open') return `<div class="kicker">INVESTIGUE · LIBERADO</div><h2>O tema escolhido pelo público é</h2><h1 class="winner">${st.winning_theme||r[0]?.theme||'—'}</h1><p>A investigação já está disponível nos dispositivos.</p>`;
- if(st.status==='waiting') return `<div class="mc-welcome"><div><div class="kicker">DATA DRIVEN · MOSTRA CIENTÍFICA</div><h1>Do interesse ao dado</h1><p>Uma experiência coletiva sobre escolhas, dados e decisões.</p><p class="mc-help">Acesse pelo QR Code, escolha um avatar e aguarde a liberação.</p></div><div class="mc-qr"><div class="mc-qr-image"><img id="mcQRCode" alt="QR Code para acessar a página do participante" hidden><div id="mcQRPlaceholder" class="mc-qr-placeholder" role="status">Abra pelo iniciador da Mostra para gerar o QR Code automaticamente</div></div><strong>Participe pelo celular</strong><small id="mcQRMessage" aria-live="polite">Verificando o endereço de acesso...</small><a id="mcQRAddress" class="mc-qr-address" target="_blank" rel="noopener noreferrer" hidden></a><button class="mc-qr-button" type="button" onclick="mcOpenQRSetup()">Configurar endereço do participante</button></div></div>`;
+ if(st.status==='waiting') return `<div class="mc-welcome"><div><div class="kicker">DATA DRIVEN · MOSTRA CIENTÍFICA</div><h1>Do interesse ao dado</h1><p>Uma experiência coletiva sobre escolhas, dados e decisões.</p><p class="mc-help">Acesse pelo QR Code, escolha um avatar e aguarde a liberação.</p></div><div class="mc-qr"><div class="mc-qr-image"><img id="mcQRCode" alt="QR Code para acessar a página do participante" hidden><div id="mcQRPlaceholder" class="mc-qr-placeholder" role="status">Abra pelo iniciador da Mostra para gerar o QR Code automaticamente</div></div><strong>Participe pelo celular</strong><small id="mcQRMessage" aria-live="polite">Aponte a câmera do celular para participar.</small><a id="mcQRAddress" class="mc-qr-address" target="_blank" rel="noopener noreferrer" hidden></a></div></div>`;
  if(st.status==='feed_open') return `<div class="kicker">EXPLORE</div><h1>Feed liberado</h1><p>As escolhas do público estão sendo transformadas em sinais.</p>`;
  if(st.status==='feed_paused') return `<div class="kicker">EXPLORE</div><h1>Feed pausado</h1><p>Aguarde a orientação do professor.</p>`;
  if(st.status==='feed_closed') return `<div class="kicker">EXPLORE · CONCLUÍDO</div><h1>Dados coletados</h1><p>Aguardando a revelação dos padrões do público.</p>`;
@@ -2352,16 +2352,8 @@ module.exports = QRCode;
  };
  const saved=()=>{try{return localStorage.getItem(key)||''}catch(_){return ''}};
  function participantAddress(){
-   // No GitHub Pages da Mostra, o QR aponta sempre para a pagina oficial.
-   // Uma URL antiga salva no navegador nao deve substituir o site publicado.
-   if(location.protocol==='https:' && location.hostname.toLowerCase()==='profprogerios.github.io' && location.pathname.startsWith('/mostra-cientifica-2026/')){
-     return valid(new URL('participantes.html',location.href).href);
-   }
-   const byUser=valid(saved());if(byUser)return byUser;
-   // Só usar URL automática quando for visível aos celulares.
-   if(!['http:','https:'].includes(location.protocol))return null;
-   const derived=new URL('participantes.html',location.href);
-   return valid(derived.href);
+   // Endereco publico fixo: QR visivel mesmo quando o telão e aberto localmente.
+   return 'https://profprogerios.github.io/mostra-cientifica-2026/participantes.html';
  }
  function updateQR(){
   const img=document.getElementById('mcQRCode');if(!img)return;
