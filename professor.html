@@ -2123,11 +2123,9 @@ async function mcAutomaticProgress(){
       patch={status:'feed_closed'};
     }else if(st==='feed_closed'&&M9Engine.canAction('startReveal',ctx.state,ctx.readiness)){
       patch={status:'results_reveal',reveal_stage:1,presentation_group:'ALL'};
-    }else if(st==='investigation_open'&&M9Engine.canAction('previewDecide',ctx.state,ctx.readiness)){
-      patch={status:'decide_preview'};
-    }else if(st==='decide_open'&&M9Engine.canAction('revealDecide',ctx.state,ctx.readiness)){
-      patch={status:'decide_reveal'};
     }
+    // INVESTIGUE, DECIDA e FECHAMENTO são apresentações do professor:
+    // o automático apenas habilita os respectivos botões quando houver dados.
     if(!patch)return;
     mcAutoBusy=true;
     // Reconfirmação: uma alteração de meta/modo tem prioridade sobre o avanço.
