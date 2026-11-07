@@ -1160,6 +1160,32 @@ function mcSessionUuid(){
   return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
 }
 let sessionId=mcSessionUuid();
+function mcReuseSessionForRun(runId){
+  // ID pseudonimo persistido por rodada. Reentradas no mesmo navegador não somam outra pessoa.
+  const key='mc_participant_session_v3:'+String(runId||'local');
+  try{
+    const stored=localStorage.getItem(key);
+    if(stored && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(stored)){
+      sessionId=stored;return;
+    }
+    sessionId=mcSessionUuid();localStorage.setItem(key,sessionId);
+  }catch(_){sessionId=mcSessionUuid();}
+}
+let mcPresenceBusy=false;
+async function mcTouchPresence(){
+  if(mcPresenceBusy || !sessionCreated || !profileReady || !remoteEnabled() || document.hidden)return;
+  if(!currentRunId || experimentState.run_id!==currentRunId)return;
+  mcPresenceBusy=true;
+  try{
+    await sb('mc_sessions?id=eq.'+encodeURIComponent(sessionId)+'&run_id=eq.'+encodeURIComponent(currentRunId),{
+      method:'PATCH',headers:{'Prefer':'return=minimal'},
+      body:JSON.stringify({last_seen_at:new Date().toISOString()})
+    });
+  }catch(err){console.warn('Presença temporariamente indisponível',err)}
+  finally{mcPresenceBusy=false;}
+}
+setInterval(mcTouchPresence,12000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)void mcTouchPresence()});
 let feedStarted=false;
 let feedLaunching=false;
 let profileReady=false;
@@ -1191,7 +1217,8 @@ function demoSet(key,val){
 }
 async function createSession(){
   if(sessionCreated) return;
-  const row={id:sessionId,run_id:currentRunId||experimentState.run_id||'local',class_group:classGroup,avatar_index:selectedAvatar ?? 0,started_at:new Date().toISOString()};
+  const row={id:sessionId,run_id:currentRunId||experimentState.run_id||'local',class_group:classGroup,
+    avatar_index:selectedAvatar ?? 0,started_at:new Date().toISOString(),last_seen_at:new Date().toISOString()};
   if(remoteEnabled()){
     await sb('mc_sessions',{method:'POST',headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(row)});
   }else{
@@ -1200,6 +1227,7 @@ async function createSession(){
     demoSet('mc_sessions',rows);
   }
   sessionCreated=true;
+  void mcTouchPresence();
 }
 async function logEvent(event_type, post_id=null, extra={}){
   const row={session_id:sessionId,post_id,event_type,feed_position:extra.feed_position??null,reaction:extra.reaction??null,duration_ms:extra.duration_ms??null};
@@ -1808,6 +1836,7 @@ async function confirmProfile(){
   profileReady=true;
   await readExperimentState();
   currentRunId=experimentState.run_id||currentRunId||'local';
+  mcReuseSessionForRun(currentRunId);
   await createSession();
   go('s4');
   await readExperimentState();
