@@ -963,11 +963,11 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
       
 
       <div class="analytics-card">
-        <div class="eyebrow">DECIDA</div>
-        <h3>Resultado coletivo</h3>
+        <div class="eyebrow">DECIDA · EQUIPE EXPOSITORA</div>
+        <h3>Nossa proposta orientada por evidências</h3>
         <div id="aDecisionContext" class="decision-context-mini"></div>
         <div id="aDecisionResult" class="result-list"></div>
-        <div class="sample-note" style="margin-top:10px">Evidências mais usadas para justificar as estratégias:</div>
+        <div class="sample-note" style="margin-top:10px">Duas fontes de evidências da rodada:</div>
         <div id="aEvidenceUsage" class="evidence-usage"></div>
 </div>
     </div>
@@ -1700,35 +1700,17 @@ function renderAnalytics(){
   }).join('');
 
 
-  const dec=DECISION[theme]||DECISION['Games'];
+  const summary=mcTeamDecisionSummary(d,latest.state.winning_theme||theme);
   document.getElementById('aDecisionContext').innerHTML=
-    `<div><b>Objetivo</b>${dec.objective}</div><div><b>Restrição</b>${dec.constraint}</div>`;
-  const votes=d.decisionAnswers||[];
-  const counts={};(dec.options||[]).forEach(o=>counts[o.code]=0);votes.forEach(v=>counts[v.choice_code]=(counts[v.choice_code]||0)+1);
-  const vt=votes.length;
-  const topCode=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0]?.[0]||null;
-  function supportIndex(code){
-    const strengths=votes.filter(v=>v.choice_code===code).flatMap(v=>(Array.isArray(v.evidence_json)?v.evidence_json:[]).map(e=>Number(e.strength)).filter(Number.isFinite));
-    return strengths.length?Math.round(strengths.reduce((a,b)=>a+b,0)/strengths.length):0;
-  }
-  document.getElementById('aDecisionResult').innerHTML=(dec.options||[]).map(o=>{
-    const p=vt?Math.round(100*(counts[o.code]||0)/vt):0;
-    const support=supportIndex(o.code);
-    return `<div class="result-row ${o.code===topCode&&vt?'top':''}"><div class="result-label">${o.text}<div class="sample-note">Sustentação nos dados: ${support}%</div></div><div class="result-track"><div class="result-fill" style="width:${p}%"></div></div><div class="result-value">${p}%</div></div>`;
-  }).join('');
-
-  const evidenceCounts={};
-  votes.forEach(v=>{
-    const arr=Array.isArray(v.evidence_json)?v.evidence_json:[];
-    arr.forEach(e=>{
-      const key=e.text||e.id;
-      if(key)evidenceCounts[key]=(evidenceCounts[key]||0)+1;
-    });
-  });
-  const topEvidence=Object.entries(evidenceCounts).sort((a,b)=>b[1]-a[1]).slice(0,4);
-  document.getElementById('aEvidenceUsage').innerHTML=topEvidence.length
-    ? topEvidence.map(([text,n])=>`<div class="evidence-use"><span>${text}</span><b>${n}×</b></div>`).join('')
-    : '<div class="sample-note">Aguardando justificativas dos participantes.</div>';
+    '<div><b>Proposta da equipe</b>'+mcHtml(summary.action)+'</div>'+
+    '<div><b>Limitação da inferência</b>'+mcHtml(summary.limitation)+'</div>';
+  document.getElementById('aDecisionResult').innerHTML=
+    '<div class="result-row"><div class="result-label">'+
+    '<strong>'+mcHtml(summary.theme||'Tema a definir')+'</strong>'+
+    '<div class="sample-note">Ação proposta a partir do conjunto de evidências.</div></div></div>';
+  document.getElementById('aEvidenceUsage').innerHTML=
+    '<div class="evidence-use"><span>'+mcHtml(summary.evidenceOne)+'</span></div>'+
+    '<div class="evidence-use"><span>'+mcHtml(summary.evidenceTwo)+'</span></div>';
 }
 
 
