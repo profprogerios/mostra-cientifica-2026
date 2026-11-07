@@ -702,10 +702,10 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
         </div>
         
         <div class="readiness-config">
-          <label>Participantes esperados (obrigatório antes da rodada)
+          <label>Meta de participantes (opcional para abrir o feed)
             <input id="expectedCount" type="number" min="1" step="1" inputmode="numeric" placeholder="Informe a quantidade">
           </label>
-          <span class="control-readiness-note">Os comandos serão liberados quando todos os participantes concluírem cada etapa.</span>
+          <span class="control-readiness-note">O professor abre e encerra o feed manualmente. A meta informa o progresso e orienta as etapas seguintes.</span>
         </div>
         <div class="scene-box">
           <div class="scene-label">Tela atual</div>
@@ -1144,13 +1144,16 @@ window.M9_DATA = {
 
     switch(action){
       case 'openFeed':
-        return (st==='waiting' || st==='feed_paused') && ready('feed');
+        // Professor pode iniciar a qualquer momento; a contagem é apenas informativa.
+        return st==='waiting' || st==='feed_paused';
       case 'pauseFeed':
         return st==='feed_open';
       case 'closeFeed':
-        return (st==='feed_open'||st==='feed_paused') && ready('feedCompletion');
+        // Encerramento é decidido pelo professor, não pelo último participante.
+        return st==='feed_open' || st==='feed_paused';
       case 'startReveal':
-        return st==='feed_closed' && ready('reveal');
+        // Só se pode revelar depois do comando de encerramento do professor.
+        return st==='feed_closed';
       case 'revealPrev':
       case 'revealNext':
         return st==='results_reveal';
@@ -1344,7 +1347,7 @@ function lockCurrentTargets(){
   try{localStorage.setItem('mc_locked_targets',JSON.stringify(lockedTargets))}catch(_){}
 }
 async function openFeed(){
-  const ctx=await requireAction('openFeed','Defina a quantidade de participantes esperados e aguarde todos entrarem.');
+  const ctx=await requireAction('openFeed','O feed só pode ser aberto no início ou retomado após pausa.');
   if(!ctx)return;
   if(ctx.state.status==='waiting')lockCurrentTargets();
   ensureTimerRunningForExperience();
@@ -1358,11 +1361,15 @@ async function pauseFeed(){
   await writeState({status:'feed_paused'});
 }
 async function closeFeed(){
-  if(!await requireAction('closeFeed','Aguarde todos concluírem o feed e pelo menos uma reação antes de encerrar.'))return;
+  const ctx=await requireAction('closeFeed','O feed precisa estar aberto ou pausado para ser encerrado.');
+  if(!ctx)return;
+  const total=ctx.metrics.total,done=ctx.metrics.feedDone;
+  if(total>done && !window.confirm('Encerrar manualmente o feed agora?\n\n'+done+' de '+total+' participantes concluíram. Quem ainda estiver navegando será interrompido.'))return;
+  if(total===0 && !window.confirm('Nenhum participante está registrado. Deseja encerrar o feed mesmo assim?'))return;
   await writeState({status:'feed_closed'});
 }
 async function startReveal(){
-  if(!await requireAction('startReveal','Encerre o feed e aguarde a conclusão necessária antes de iniciar o REVELE.'))return;
+  if(!await requireAction('startReveal','Use ENCERRAR FEED antes de iniciar o REVELE.'))return;
   setTimedStage('REVELE');
   await writeState({status:'results_reveal',reveal_stage:1,presentation_group:group});
 }
@@ -1537,12 +1544,14 @@ function updateReadiness(d){
   if(expectedInput)expectedInput.disabled=state.status!=='waiting';
 
   const duringFeed=['feed_open','feed_paused','feed_closed'].includes(state.status);
-  const feedStatus=duringFeed?r.feedCompletion:r.feed;
-  const feedLabel=target===0?'defina os participantes esperados':duringFeed
-    ? `${metrics.feedDone}/${target} concluíram o feed`
-    : `${metrics.total}/${target} perfis prontos`;
+  const feedStatus=['feed_open','feed_paused'].includes(state.status)?'ok':state.status==='waiting'?'ok':r.feedCompletion;
+  const feedLabel=state.status==='waiting'?'pronto para abertura manual'
+    : state.status==='feed_open'?'ABERTO · professor controla'
+    : state.status==='feed_paused'?'PAUSADO · professor controla'
+    : state.status==='feed_closed'?'ENCERRADO pelo professor'
+    : `${metrics.feedDone}/${target||metrics.total} concluíram o feed`;
   setReady('readyFeed',feedStatus,feedLabel);
-  setReady('readyReveal',r.reveal,target>0?`${metrics.feedDone}/${target} terminaram o feed`:'aguarde');
+  setReady('readyReveal',state.status==='feed_closed'?'ok':r.reveal,state.status==='feed_closed'?'feed encerrado · comando manual':target>0?`${metrics.feedDone}/${target} terminaram o feed`:'aguarde');
   setReady('readyInvestigate',r.investigatePreview,r.investigatePreview==='warn'?'avance até 6/6':r.investigatePreview==='ok'?'cena 6/6':'aguarde');
   setReady('readyInvestigateRelease',r.investigateRelease,state.status==='investigation_open'?'liberado':r.investigateRelease==='ok'?'apresentado':'bloqueado');
 
@@ -1559,10 +1568,10 @@ function updateReadiness(d){
     el.disabled=!ok; el.title=ok?'':reason;
   };
 
-  lock('openFeedBtn',allow('openFeed'),'Defina a quantidade de participantes e aguarde todos os perfis.');
+  lock('openFeedBtn',allow('openFeed'),'Disponível apenas antes da abertura ou enquanto o feed estiver pausado.');
   lock('pauseFeedBtn',allow('pauseFeed'),'O feed só pode ser pausado enquanto estiver aberto.');
-  lock('closeFeedBtn',allow('closeFeed'),'Aguarde todos concluírem o feed e pelo menos uma reação.');
-  lock('startRevealBtn',allow('startReveal'),'Encerre o feed e aguarde as conclusões.');
+  lock('closeFeedBtn',allow('closeFeed'),'Disponível apenas com o feed aberto ou pausado.');
+  lock('startRevealBtn',allow('startReveal'),'Use ENCERRAR FEED primeiro.');
   lock('startInvestigateBtn',allow('previewInvestigation'),'Chegue à cena 6/6 do REVELE.');
   lock('releaseInvestigateBtn',allow('releaseInvestigation'),'Apresente a investigação primeiro.');
   lock('previewDecideBtn',allow('previewDecide'),'Conclua o INVESTIGUE antes de apresentar o DECIDA.');
