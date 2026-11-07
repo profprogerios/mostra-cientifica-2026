@@ -1117,13 +1117,15 @@ window.M9_DATA = {
     };
     const feed=target===0?'no':total>=target?'ok':total>0?'warn':'no';
     const feedCompletion=complete(feedDone,reactions>0);
-    const reveal=['feed_closed','results_reveal','investigation_preview','investigation_open',
+    // A entrada no REVELE confirma que o feed foi encerrado. Uma desconexão
+    // posterior não pode bloquear a apresentação do professor.
+    const reveal=['results_reveal','investigation_preview','investigation_open',
       'decide_preview','decide_open','decide_reveal','closing_reveal'].includes(st)
-      ? feedCompletion : 'no';
+      ? 'ok' : st==='feed_closed'?feedCompletion:'no';
     const investigatePreview=st==='results_reveal'
-      ? (stage>=6&&reveal==='ok'?'ok':'warn')
+      ? (stage>=6?'ok':'warn')
       : ['investigation_preview','investigation_open','decide_preview','decide_open','decide_reveal','closing_reveal'].includes(st)
-        ? (reveal==='ok'?'ok':'no') : 'no';
+        ? 'ok' : 'no';
     const investigateRelease=st==='investigation_preview'?'ok':'no';
     // Os 12 itens do INVESTIGUE devem estar efetivamente gravados por participante.
     const investigationComplete=complete(investDone,investAnswers>=target*12);
@@ -1158,7 +1160,9 @@ window.M9_DATA = {
       case 'revealNext':
         return st==='results_reveal';
       case 'previewInvestigation':
-        return st==='results_reveal' && stage>=6 && ready('investigatePreview');
+        // O professor controla a transição pedagógica depois da cena 6/6,
+        // independentemente de os aparelhos continuarem conectados.
+        return st==='results_reveal' && stage>=6;
       case 'releaseInvestigation':
         return st==='investigation_preview';
       case 'previewDecide':
@@ -1334,6 +1338,22 @@ async function writeState(patch){
   await refresh();
 }
 
+// Durante o feed exigimos presença recente; depois do encerramento,
+ // usamos conclusões gravadas para não perder participantes por timeout.
+function mcStageMetrics(d,state){
+  const status=state?.status||'waiting';
+  const isFeed=['waiting','feed_open','feed_paused'].includes(status);
+  const eligible=isFeed?activeSubset(d):d;
+  return {
+    total:eligible.sessions.length,
+    feedDone:eligible.sessions.filter(s=>s.feed_completed_at).length,
+    reactions:eligible.reactions.length,
+    investAnswers:(eligible.investigationAnswers||[]).length,
+    decisionAnswers:(eligible.decisionAnswers||[]).length,
+    investDone:eligible.sessions.filter(s=>s.investigation_completed_at).length,
+    decisionDone:eligible.sessions.filter(s=>s.decision_completed_at).length
+  };
+}
 function flowContext(){
   const d=filtered(latest||{
     sessions:[],reactions:[],attention:[],events:[],
@@ -1343,15 +1363,7 @@ function flowContext(){
   const state=(latest&&latest.state)||d.state||{status:'waiting',reveal_stage:0};
   const live=activeSubset(d);
   const target=expectedTarget();
-  const metrics={
-    total:live.sessions.length,
-    feedDone:live.sessions.filter(s=>s.feed_completed_at).length,
-    reactions:live.reactions.length,
-    investAnswers:(live.investigationAnswers||[]).length,
-    decisionAnswers:(live.decisionAnswers||[]).length,
-    investDone:live.sessions.filter(s=>s.investigation_completed_at).length,
-    decisionDone:live.sessions.filter(s=>s.decision_completed_at).length
-  };
+  const metrics=mcStageMetrics(d,state);
   return {d,live,state,target,metrics,readiness:M9Engine.stageReadiness(state,metrics,target)};
 }
 async function requireAction(action,message){
@@ -1612,15 +1624,7 @@ function updateReadiness(d){
   const state=latest.state||{status:'waiting',reveal_stage:0};
   const live=activeSubset(d);
   const target=expectedTarget();
-  const metrics={
-    total:live.sessions.length,
-    feedDone:live.sessions.filter(s=>s.feed_completed_at).length,
-    reactions:live.reactions.length,
-    investAnswers:(live.investigationAnswers||[]).length,
-    decisionAnswers:(live.decisionAnswers||[]).length,
-    investDone:live.sessions.filter(s=>s.investigation_completed_at).length,
-    decisionDone:live.sessions.filter(s=>s.decision_completed_at).length
-  };
+  const metrics=mcStageMetrics(d,state);
   const r=M9Engine.stageReadiness(state,metrics,target);
   const automatic=currentMode()==='automatic';
   loadExpected();
@@ -1638,9 +1642,10 @@ function updateReadiness(d){
     : 'Manual: a quantidade é informativa; o professor abre, pausa, encerra e conduz as etapas.';
 
   const duringFeed=['feed_open','feed_paused','feed_closed'].includes(state.status);
-  const feedStatus=automatic?(state.status==='waiting'?r.feed:
-     ['feed_open','feed_paused'].includes(state.status)?r.feedCompletion:r.feedCompletion)
-     :['feed_open','feed_paused','feed_closed','waiting'].includes(state.status)?'ok':r.feedCompletion;
+  const pastFeed=!['waiting','feed_open','feed_paused'].includes(state.status);
+  const feedStatus=pastFeed?'ok':automatic
+    ?(state.status==='waiting'?r.feed:r.feedCompletion)
+    :'ok';
   const feedLabel=state.status==='waiting'?(automatic?'aguardando '+target+' presenças ativas':'liberação manual')
     : state.status==='feed_open'?(automatic?metrics.feedDone+'/'+target+' concluíram':'ABERTO · professor controla')
     : state.status==='feed_paused'?'PAUSADO · professor controla'
@@ -1648,9 +1653,9 @@ function updateReadiness(d){
     : `${metrics.feedDone}/${target||metrics.total} concluíram o feed`;
   setReady('readyFeed',feedStatus,feedLabel);
   setReady('readyReveal',state.status==='feed_closed'?(automatic?r.feedCompletion:'ok'):r.reveal,
-    state.status==='feed_closed'?'feed encerrado':target>0?`${metrics.feedDone}/${target} terminaram o feed`:'aguarde');
-  setReady('readyInvestigate',!automatic && M9Engine.canAction('previewInvestigation',state,r)?'ok':r.investigatePreview,
-    r.investigatePreview==='warn'?'avance até 6/6':r.investigatePreview==='ok'?'cena 6/6':'aguarde');
+    r.reveal==='ok'?'revelação iniciada':state.status==='feed_closed'?'feed encerrado':target>0?`${metrics.feedDone}/${target} terminaram o feed`:'aguarde');
+  setReady('readyInvestigate',M9Engine.canAction('previewInvestigation',state,r)?'ok':r.investigatePreview,
+    r.investigatePreview==='warn'?'avance até 6/6':r.investigatePreview==='ok'?'pronto para apresentar':'aguarde');
   setReady('readyInvestigateRelease',r.investigateRelease,state.status==='investigation_open'?'liberado':r.investigateRelease==='ok'?'apresentado':'bloqueado');
 
   setReady('readyDecide',!automatic && M9Engine.canAction('previewDecide',state,r)?'ok':r.decide,
