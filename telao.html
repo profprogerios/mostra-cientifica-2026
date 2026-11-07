@@ -679,6 +679,9 @@ window.M9_DATA = {
 
 </script>
 <script>
+// Compatibilidade com motores JavaScript de Smart TV que nao possuem estes metodos.
+if(!Object.fromEntries){Object.fromEntries=function(items){var o={};Array.from(items).forEach(function(p){o[p[0]]=p[1]});return o;}}
+if(!Array.prototype.flatMap){Array.prototype.flatMap=function(fn,ctx){return this.reduce(function(a,x,i){return a.concat(fn.call(ctx,x,i,this));}.bind(this),[]);};}
 
 const CONFIG=window.M9_PUBLIC_CONFIG;
 const THEMES=window.M9_DATA.THEMES;
@@ -692,15 +695,20 @@ function dg(k,f){try{return JSON.parse(localStorage.getItem(k)||'null')??f}catch
 function ds(k,v){localStorage.setItem(k,JSON.stringify(v));channel?.postMessage({type:'changed',key:k})}
 async function getAll(){
   if(remoteEnabled()){
-    const [sessions,reactions,attention,events,decisionAnswers,state]=await Promise.all([
+    // Estado simples primeiro: a tela inicial e o feed nao precisam consultar ranking.
+    const stateRows=await sb('mc_experiment_state?id=eq.main&select=*');
+    const state=(stateRows&&stateRows[0])||{status:'waiting',reveal_stage:0,presentation_group:'ALL'};
+    if(['waiting','feed_open','feed_paused','feed_closed'].includes(state.status)){
+      return {sessions:[],reactions:[],attention:[],events:[],decisionAnswers:[],state};
+    }
+    const [sessions,reactions,attention,events,decisionAnswers]=await Promise.all([
       sb('mc_sessions?select=*'),
       sb('mc_reactions?select=*'),
       sb('mc_attention?select=*'),
       sb('mc_feed_events?select=*'),
-      sb('mc_decision_answers?select=*'),
-      sb('mc_experiment_state?id=eq.main&select=*')
+      sb('mc_decision_answers?select=*')
     ]);
-    return {sessions:sessions||[],reactions:reactions||[],attention:attention||[],events:events||[],decisionAnswers:decisionAnswers||[],state:state?.[0]||{status:'waiting',reveal_stage:0,presentation_group:'ALL'}};
+    return {sessions:sessions||[],reactions:reactions||[],attention:attention||[],events:events||[],decisionAnswers:decisionAnswers||[],state};
   }
   return {
     sessions:dg('mc_sessions',[]),
@@ -956,7 +964,10 @@ function closingScene(stage){
 }
 
 function sceneHtml(d){
- const st=latest.state||{status:'waiting',reveal_stage:0}, stage=st.reveal_stage||0, m=metrics(d), r=ranking(d.reactions,d.attention), max=Math.max(1,...r.map(x=>x.score));
+ const st=latest.state||{status:'waiting',reveal_stage:0}, stage=st.reveal_stage||0;
+ // No estado de espera, dispensa ranking e metodos avancados do navegador de Smart TV.
+ if(st.status==='waiting') return `<div class="mc-welcome"><div><div class="kicker">DATA DRIVEN · MOSTRA CIENTÍFICA</div><h1>Do interesse ao dado</h1><p>Uma experiência coletiva sobre escolhas, dados e decisões.</p><p class="mc-help">Acesse pelo QR Code, escolha um avatar e aguarde a liberação.</p></div><div class="mc-qr"><div class="mc-qr-image"><img id="mcQRCode" alt="QR Code para acessar a página do participante" hidden><div id="mcQRPlaceholder" class="mc-qr-placeholder" role="status">Abra pelo iniciador da Mostra para gerar o QR Code automaticamente</div></div><strong>Participe pelo celular</strong><small id="mcQRMessage" aria-live="polite">Aponte a câmera do celular para participar.</small><a id="mcQRAddress" class="mc-qr-address" target="_blank" rel="noopener noreferrer" hidden></a></div></div>`;
+ const m=metrics(d), r=ranking(d.reactions,d.attention);
  if(st.status==='closing_reveal') return closingScene(st.closing_stage||1);
  if(st.status==='decide_preview'){
    const dec=DECISION[st.winning_theme];
@@ -1007,7 +1018,6 @@ function sceneHtml(d){
  }
  if(st.status==='investigation_preview') return `<div class="kicker">INVESTIGUE · PREPARAÇÃO</div><h2>O tema escolhido pelo público é</h2><h1 class="winner">${st.winning_theme||r[0]?.theme||'—'}</h1><p>Gostar do tema ainda nos diz muito pouco.</p><p style="color:#fff;font-weight:850">Vamos formular novas perguntas antes de liberar as respostas.</p>`;
  if(st.status==='investigation_open') return `<div class="kicker">INVESTIGUE · LIBERADO</div><h2>O tema escolhido pelo público é</h2><h1 class="winner">${st.winning_theme||r[0]?.theme||'—'}</h1><p>A investigação já está disponível nos dispositivos.</p>`;
- if(st.status==='waiting') return `<div class="mc-welcome"><div><div class="kicker">DATA DRIVEN · MOSTRA CIENTÍFICA</div><h1>Do interesse ao dado</h1><p>Uma experiência coletiva sobre escolhas, dados e decisões.</p><p class="mc-help">Acesse pelo QR Code, escolha um avatar e aguarde a liberação.</p></div><div class="mc-qr"><div class="mc-qr-image"><img id="mcQRCode" alt="QR Code para acessar a página do participante" hidden><div id="mcQRPlaceholder" class="mc-qr-placeholder" role="status">Abra pelo iniciador da Mostra para gerar o QR Code automaticamente</div></div><strong>Participe pelo celular</strong><small id="mcQRMessage" aria-live="polite">Aponte a câmera do celular para participar.</small><a id="mcQRAddress" class="mc-qr-address" target="_blank" rel="noopener noreferrer" hidden></a></div></div>`;
  if(st.status==='feed_open') return `<div class="kicker">EXPLORE</div><h1>Feed liberado</h1><p>As escolhas do público estão sendo transformadas em sinais.</p>`;
  if(st.status==='feed_paused') return `<div class="kicker">EXPLORE</div><h1>Feed pausado</h1><p>Aguarde a orientação do professor.</p>`;
  if(st.status==='feed_closed') return `<div class="kicker">EXPLORE · CONCLUÍDO</div><h1>Dados coletados</h1><p>Aguardando a revelação dos padrões do público.</p>`;
@@ -1030,7 +1040,10 @@ function sceneHtml(d){
   </div>
 </div>`;
 }
+let mcRefreshInProgress=false;
 async function refresh(){
+  if(mcRefreshInProgress)return;
+  mcRefreshInProgress=true;
   try{
     latest=await getAll();
     group=latest.state?.presentation_group||latest.state?.winning_group||'ALL';
@@ -1045,10 +1058,18 @@ async function refresh(){
     window.mcRefreshQRCode?.();
   }catch(e){
     console.error('Falha no telão:',e);
-    scene.innerHTML='<div class="kicker">SINCRONIZAÇÃO</div><h2>Não foi possível atualizar o telão.</h2><p>Verifique se Professor e Telão estão usando a mesma versão e o mesmo modo de conexão.</p>';
-  }
+    // Uma falha de processamento nao deve bloquear o QR dos participantes.
+    if(!scene.dataset.mcSceneHtml){
+      scene.innerHTML='<div class="mc-welcome"><div><div class="kicker">DATA DRIVEN · MOSTRA CIENTÍFICA</div><h1>Do interesse ao dado</h1><p>O acesso dos participantes continua disponível.</p></div><div class="mc-qr"><div class="mc-qr-image"><img id="mcQRCode" alt="QR Code para participantes"></div><strong>Participe pelo celular</strong><small id="mcQRMessage">Aponte a câmera para acessar.</small><a id="mcQRAddress" class="mc-qr-address" target="_blank" rel="noopener noreferrer"></a></div></div>';
+      window.mcRefreshQRCode?.();
+    }
+    var err=document.getElementById('mcSyncProblem');
+    if(!err){err=document.createElement('p');err.id='mcSyncProblem';err.setAttribute('role','status');err.style.cssText='background:#38290d;border:1px solid #e6a05a;border-radius:10px;padding:8px 12px;color:#ffe0b0;font-size:13px;max-width:820px;margin:10px auto;text-align:center';scene.appendChild(err);}
+    var msg=e&&e.message?String(e.message):String(e);
+    err.textContent='Atualização em tempo real indisponível. Diagnóstico: '+msg.slice(0,180);
+  }finally{mcRefreshInProgress=false;}
 }
-setInterval(refresh,1200);channel&&(channel.onmessage=refresh);
+setInterval(refresh,2500);channel&&(channel.onmessage=refresh);
 window.addEventListener('storage',e=>{
   if(!e.key || e.key.startsWith('mc_'))refresh();
 });refresh();
