@@ -855,50 +855,15 @@ body:has(#s1.mc-entry-screen.active){background:#050607!important;}
   <h2>Investigação concluída.</h2>
   <p style="max-width:650px">Os dados do público serão analisados coletivamente. Acompanhe o dashboard no telão.</p>
   <div class="wait-pulse"><span></span><span></span><span></span></div>
-  <p id="decideStatus" class="small">Aguardando a etapa DECIDA.</p>
+  <p id="decideStatus" class="small">Obrigado por contribuir. A equipe apresentará no telão uma proposta baseada nos dados.</p>
 </section>
 
-<section id="decideIntro" class="screen center decide-dark">
-  <div class="brand">Mostra Científica · Decida</div>
-  <h2>Agora os dados precisam virar uma decisão.</h2>
-  <p style="max-width:700px">Use os padrões apresentados no dashboard. As alternativas representam estratégias possíveis, com prioridades diferentes. Escolha a que você defenderia para este público.</p>
-  <div style="height:16px"></div>
-  <button id="openDecisionBtn" class="btn" onclick="openDecision()" disabled>TOMAR UMA DECISÃO</button>
-</section>
-
-<section id="decideScreen" class="screen decide-light">
-  <header class="invest-topbar">
-    <div class="invest-topinner">
-      <div class="m9">DATA DRIVEN <span class="dot">●</span></div>
-      <div style="flex:1"><strong style="font-size:13px;color:var(--petrol)">DECIDA</strong></div>
-      <div id="decideIdentity" style="font-size:13px;font-weight:850;color:#6e7f83"></div>
-    </div>
-  </header>
-  <main class="decide-wrap">
-    <div class="invest-dim">DECISÃO ORIENTADA POR DADOS</div>
-    <h2 id="decideTitle"></h2>
-    <div id="decidePrompt" class="invest-subtitle"></div>
-    <div id="decideContext" class="decide-context"></div>
-    <div id="decideOptions" class="decide-options"></div>
-
-    <section id="evidenceSection" class="evidence-section" hidden>
-      <div class="invest-dim">JUSTIFIQUE COM DADOS</div>
-      <h3>Escolha duas evidências que sustentam sua estratégia.</h3>
-      <p class="invest-subtitle">As evidências abaixo foram calculadas a partir dos dados coletivos desta execução.</p>
-      <div id="decideEvidenceOptions" class="evidence-options"></div>
-      <div id="evidenceCount" class="evidence-count">0 de 2 evidências selecionadas</div>
-    </section>
-
-    <button id="decideSubmit" class="decide-submit" disabled onclick="submitDecision()">CONFIRMAR DECISÃO</button>
-  </main>
-</section>
-
-<section id="decideDone" class="screen center decide-dark">
-  <div class="brand">DECIDA · escolha registrada</div>
-  <h2>Sua decisão entrou no conjunto de dados.</h2>
-  <p style="max-width:700px">Agora vamos comparar as escolhas do público e discutir quais dados podem ser usados para defender cada estratégia.</p>
+<section id="visitorFinish" class="screen center invest-dark">
+  <div class="brand">Mostra Científica · Data Driven</div>
+  <h2>Obrigado por participar.</h2>
+  <p style="max-width:720px">Seus registros ajudam a revelar padrões. A equipe expositora apresentará no telão uma proposta de decisão baseada nos dados coletados.</p>
   <div class="wait-pulse"><span></span><span></span><span></span></div>
-  <p class="small">Acompanhe o resultado e o fechamento da experiência no telão.</p>
+  <p class="small">Acompanhe a apresentação e o fechamento no telão.</p>
 </section>
 
 <script>
@@ -1664,10 +1629,8 @@ function applyExperimentState(){
       btn.disabled=true; msg.textContent='O tema da investigação está sendo apresentado.';
     }else if(st==='investigation_open'){
       btn.disabled=true; msg.textContent='A investigação foi liberada.';
-    }else if(st==='decide_preview'){
-      btn.disabled=true; msg.textContent='O desafio DECIDA está sendo apresentado.';
-    }else if(st==='decide_open' || st==='decide_reveal'){
-      btn.disabled=true; msg.textContent='A experiência avançou para a etapa DECIDA.';
+    }else if(['decide_preview','decide_open','decide_reveal','closing_reveal'].includes(st)){
+      btn.disabled=true; msg.textContent='A equipe está apresentando as conclusões no telão.';
     }else{
       btn.disabled=false; btn.textContent='ENTRAR NO FEED'; msg.textContent='Feed liberado.';
       if(st==='feed_open' && profileReady && !feedStarted && !feedLaunching &&
@@ -1693,15 +1656,12 @@ function applyExperimentState(){
   if(st==='investigation_open' && experimentState.winning_theme && feedStarted){
     prepareInvestigation(experimentState.winning_theme,true);
   }
-  if(st==='decide_preview' && experimentState.winning_theme && investigationCompleted && !decisionSubmitted){
-    prepareDecision(experimentState.winning_theme,false);
-  }
-  if(st==='decide_open' && experimentState.winning_theme && investigationCompleted && !decisionSubmitted){
-    prepareDecision(experimentState.winning_theme,true);
-  }
-  if(st==='decide_reveal' && decisionSubmitted){
+  // Após o INVESTIGUE, o DECIDA é apresentado pela equipe, sem interação no celular.
+  if(['decide_preview','decide_open','decide_reveal','closing_reveal'].includes(st)){
     const active=document.querySelector('.screen.active')?.id||'';
-    if(active==='decideDone') document.querySelector('#decideDone .small').textContent='Resultado coletivo liberado no telão.';
+    if(['investWait','investDone','decideIntro','decideScreen','decideDone'].includes(active)){
+      go('visitorFinish');
+    }
   }
 }
 setInterval(readExperimentState,1800);
