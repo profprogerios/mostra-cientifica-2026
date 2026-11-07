@@ -783,19 +783,10 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
           </div>
 
           <div class="command-block">
-            <div class="command-head"><div class="command-title">Decida</div><div id="readyDecide" class="ready no"><span class="lamp"></span><span>aguarde</span></div></div>
+            <div class="command-head"><div class="command-title">DECIDA · equipe expositora</div><div id="readyDecide" class="ready no"><span class="lamp"></span><span>aguarde</span></div></div>
             <div class="command-buttons">
-              <button class="primary" id="previewDecideBtn" onclick="previewDecide()" disabled>APRESENTAR DECIDA</button>
-              <div class="command-head" style="margin:2px 0 0">
-                <div class="command-title">Liberação aos participantes</div>
-                <div id="readyDecideRelease" class="ready no"><span class="lamp"></span><span>bloqueado</span></div>
-              </div>
-              <button class="orange" id="startDecideBtn" onclick="startDecide()" disabled>LIBERAR DECISÃO</button>
-              <div class="command-head" style="margin:2px 0 0">
-                <div class="command-title">Resultado</div>
-                <div id="readyDecisionReveal" class="ready no"><span class="lamp"></span><span>aguarde</span></div>
-              </div>
-              <button class="primary" id="revealDecideBtn" onclick="revealDecide()" disabled>REVELAR DECISÕES</button>
+              <button class="primary" id="previewDecideBtn" onclick="previewDecide()" disabled>APRESENTAR NOSSA DECISÃO</button>
+              <p class="control-readiness-note">A equipe propõe uma ação com base no ranking e nas respostas da investigação. Sem votação pelo celular.</p>
             </div>
           </div>
 
@@ -843,7 +834,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 
         <div class="timer-global-clock">
           <span>Tempo total</span>
-          <div><strong id="presentationTimer">00:00</strong><small>/ 30:00</small></div>
+          <div><strong id="presentationTimer">00:00</strong><small>/ 19:00</small></div>
         </div>
 
         <div id="timerStatusPill" class="timer-status-pill idle">
@@ -858,25 +849,22 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
           <span class="stage-light"></span><span class="stage-name">EXPLORE</span><span class="stage-time">-- / 05:00</span>
         </div>
         <div class="stage-time-item future" data-tstage="REVELE">
-          <span class="stage-light"></span><span class="stage-name">REVELE</span><span class="stage-time">-- / 05:00</span>
+          <span class="stage-light"></span><span class="stage-name">REVELE</span><span class="stage-time">-- / 03:00</span>
         </div>
         <div class="stage-time-item future" data-tstage="INVESTIGUE">
           <span class="stage-light"></span><span class="stage-name">INVESTIGUE</span><span class="stage-time">-- / 05:00</span>
         </div>
-        <div class="stage-time-item future" data-tstage="ANALISE">
-          <span class="stage-light"></span><span class="stage-name">ANALISE</span><span class="stage-time">-- / 05:00</span>
-        </div>
         <div class="stage-time-item future" data-tstage="DECIDA">
-          <span class="stage-light"></span><span class="stage-name">DECIDA</span><span class="stage-time">-- / 05:00</span>
+          <span class="stage-light"></span><span class="stage-name">DECIDA · EQUIPE</span><span class="stage-time">-- / 02:00</span>
         </div>
         <div class="stage-time-item future" data-tstage="FECHAMENTO">
-          <span class="stage-light"></span><span class="stage-name">FECHAMENTO</span><span class="stage-time">-- / 03:00</span>
+          <span class="stage-light"></span><span class="stage-name">FECHAMENTO</span><span class="stage-time">-- / 02:00</span>
         </div>
       </div>
 
       <div class="timer-wide-footer">
         <div class="timer-summary timer-summary-wide">
-          <div class="timer-mini"><span>Planejado</span><b id="plannedTotal">28:00 + 02:00 reserva</b></div>
+          <div class="timer-mini"><span>Planejado</span><b id="plannedTotal">17:00 + 02:00 reserva</b></div>
           <div class="timer-mini"><span>Reserva restante</span><b id="reserveRemaining">02:00</b></div>
         </div>
 
@@ -922,12 +910,10 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
       </div>
 
       <div class="kpi-group">
-        <div class="kpi-title">Decisão</div>
+        <div class="kpi-title">Decisão da equipe</div>
         <div class="info-grid">
-          <div class="kpi"><div class="lbl">Iniciaram</div><div id="decideStarted" class="n">0</div></div>
-          <div class="kpi"><div class="lbl">Votaram</div><div id="decideCompleted" class="n">0</div></div>
-          <div class="kpi"><div class="lbl">Maior preferência</div><div id="decideTopPct" class="n sm">0%</div></div>
-          <div class="kpi"><div class="lbl">Estratégias votadas</div><div id="decideDiversity" class="n sm">0</div></div>
+          <div class="kpi" style="grid-column:1/-1"><div class="lbl">Proposta orientada por dados</div><div id="mcTeamAction" class="n long">Aguardando resultados</div></div>
+          <div class="kpi" style="grid-column:1/-1"><div class="lbl">Evidências</div><div id="mcTeamEvidence" class="small">Serão exibidas após a coleta.</div></div>
         </div>
       </div>
     </div>
@@ -1141,13 +1127,9 @@ window.M9_DATA = {
     const investigateRelease=st==='investigation_preview'?'ok':'no';
     // Os 12 itens do INVESTIGUE devem estar efetivamente gravados por participante.
     const investigationComplete=complete(investDone,investAnswers>=target*12);
-    const decide=['investigation_open','decide_preview','decide_open','decide_reveal','closing_reveal'].includes(st)
-      ? investigationComplete : 'no';
-    const decisionComplete=complete(decisionDone,decisionAnswers>=target);
-    const decisionReveal=['decide_open','decide_reveal','closing_reveal'].includes(st)
-      ? decisionComplete : 'no';
-    const closing=['decide_reveal','closing_reveal'].includes(st)
-      ? decisionComplete : 'no';
+    const decide=['investigation_open','decide_preview','decide_open','decide_reveal','closing_reveal'].includes(st)?investigationComplete:'no';
+    const decisionReveal='no';
+    const closing=['decide_preview','decide_open','decide_reveal','closing_reveal'].includes(st)?'ok':'no';
     return {feed,feedCompletion,reveal,investigatePreview,investigateRelease,
       decide,decisionReveal,closing};
   }
@@ -1182,11 +1164,8 @@ window.M9_DATA = {
       case 'previewDecide':
         return st==='investigation_open' && ready('decide');
       case 'startDecide':
-        return st==='decide_preview';
-      case 'revealDecide':
-        return st==='decide_open' && ready('decisionReveal');
-      case 'startClosing':
-        return st==='decide_reveal' && ready('closing');
+      case 'revealDecide': return false;
+      case 'startClosing': return ['decide_preview','decide_open','decide_reveal'].includes(st);
       case 'closingPrev':
       case 'closingNext':
         return st==='closing_reveal';
@@ -1419,20 +1398,10 @@ async function releaseInvestigation(){
   await writeState({status:'investigation_open'});
 }
 async function previewDecide(){
-  if(!await requireAction('previewDecide','O DECIDA só pode ser apresentado depois que o INVESTIGUE estiver concluído.'))return;
+  if(!await requireAction('previewDecide','No automático, aguarde as investigações concluídas; no manual, apresente após liberar o INVESTIGUE.'))return;
   setTimedStage('DECIDA');
   await writeState({status:'decide_preview'});
 }
-async function startDecide(){
-  if(!await requireAction('startDecide','Primeiro use “APRESENTAR DECIDA” e explique o desafio ao grupo.'))return;
-  setTimedStage('DECIDA');
-  await writeState({status:'decide_open'});
-}
-async function revealDecide(){
-  if(!await requireAction('revealDecide','As decisões só podem ser reveladas depois que o DECIDA estiver aberto e houver conclusões suficientes.'))return;
-  await writeState({status:'decide_reveal'});
-}
-
 function resetDemo(){ openResetConfirm(); }
 
 function openResetConfirm(){
@@ -1500,11 +1469,11 @@ async function confirmFullReset(){
 }
 
 async function startClosing(){
-  if(!await requireAction('startClosing','O fechamento só pode começar depois da revelação do DECIDA.'))return;
+  if(!await requireAction('startClosing','Apresente primeiro a proposta de decisão da equipe.'))return;
   setTimedStage('FECHAMENTO');
   await writeState({status:'closing_reveal',closing_stage:1});
 }
-const MC_CLOSING_LAST=7;
+const MC_CLOSING_LAST=4;
 const mcClosingClamp=n=>Math.max(1,Math.min(MC_CLOSING_LAST,Math.floor(Number(n)||1)));
 let mcClosingNavigationBusy=false;
 async function closingStep(delta){
@@ -1655,14 +1624,8 @@ function updateReadiness(d){
   setReady('readyInvestigateRelease',r.investigateRelease,state.status==='investigation_open'?'liberado':r.investigateRelease==='ok'?'apresentado':'bloqueado');
 
   setReady('readyDecide',!automatic && M9Engine.canAction('previewDecide',state,r)?'ok':r.decide,
-    target>0?`${metrics.investDone}/${target} investigações completas`:'controle manual');
-  const releaseStatus=state.status==='decide_preview'||state.status==='decide_open'?'ok':'no';
-  setReady('readyDecideRelease',releaseStatus,state.status==='decide_open'?'liberado':releaseStatus==='ok'?'apresentado':'bloqueado');
-
-  setReady('readyDecisionReveal',!automatic && M9Engine.canAction('revealDecide',state,r)?'ok':r.decisionReveal,
-    target>0?`${metrics.decisionDone}/${target} decisões completas`:'controle manual');
-  setReady('readyClosing',!automatic && M9Engine.canAction('startClosing',state,r)?'ok':r.closing,
-    target>0?`${metrics.decisionDone}/${target} decisões registradas`:'controle manual');
+    automatic?metrics.investDone+'/'+target+' investigações concluídas':'apresentação conduzida pela equipe');
+  setReady('readyClosing',M9Engine.canAction('startClosing',state,r)?'ok':r.closing,'após a decisão da equipe');
 
   const allow=(action)=>M9Engine.canAction(action,state,r);
   const lock=(id,ok,reason)=>{
@@ -1676,10 +1639,8 @@ function updateReadiness(d){
   lock('startRevealBtn',allow('startReveal'),'Use ENCERRAR FEED primeiro.');
   lock('startInvestigateBtn',allow('previewInvestigation'),'Chegue à cena 6/6 do REVELE.');
   lock('releaseInvestigateBtn',allow('releaseInvestigation'),'Apresente a investigação primeiro.');
-  lock('previewDecideBtn',allow('previewDecide'),'Conclua o INVESTIGUE antes de apresentar o DECIDA.');
-  lock('startDecideBtn',allow('startDecide'),'Apresente e explique o DECIDA antes de liberar as decisões.');
-  lock('revealDecideBtn',allow('revealDecide'),'Aguarde a conclusão do DECIDA.');
-  lock('startClosingBtn',allow('startClosing'),'Revele primeiro o resultado do DECIDA.');
+  lock('previewDecideBtn',allow('previewDecide'),'No automático, aguarde a meta de investigações concluídas. No manual, apresente após liberar o INVESTIGUE.');
+  lock('startClosingBtn',allow('startClosing'),'Apresente primeiro a decisão da equipe.');
 
   const prev=document.getElementById('revealPrev'),next=document.getElementById('revealNext');
   if(prev)prev.disabled=state.status!=='results_reveal'||(state.reveal_stage||1)<=1;
@@ -1772,18 +1733,31 @@ function renderAnalytics(){
 
 
 const CLOSING_TITLES={
-  1:'Antes da pesquisa, você já tinha gerado dados.',
-  2:'Ações viraram sinais. Sinais viraram padrões.',
-  3:'O que você fez e o que você disse são dados diferentes.',
-  4:'Padrões permitem fazer inferências.',
-  5:'Quando um padrão começa a orientar uma ação?',
-  6:'Por que os dados têm valor?',
-  7:'DATA DRIVEN: decisões orientadas por evidências.'
+  1:'Ações viraram sinais. Sinais viraram padrões.',
+  2:'O que você fez e o que você disse são dados diferentes.',
+  3:'Quando um padrão começa a orientar uma ação?',
+  4:'DATA DRIVEN: decisões orientadas por evidências.'
 };
 function mirrorPct(v,total){
   if(!total)return '0%';
   const p=v*100/total;
   return (p>=10?Math.round(p):Math.round(p*10)/10).toString().replace('.',',')+'%';
+}
+function mcHtml(x){return String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function mcTeamDecisionSummary(d,chosen){
+  const ranked=ranking(d.reactions||[],d.attention||[]);
+  const total=ranked.reduce((sum,x)=>sum+(Number(x.score)||0),0);
+  const theme=chosen||((total>0&&ranked[0])?ranked[0].theme:null);
+  const item=ranked.find(x=>x.theme===theme);
+  const share=total>0&&item?Math.round((Number(item.score)||0)*100/total):null;
+  const q1=(d.investigationAnswers||[]).filter(x=>x.question_id==='q1'&&(x.theme_slug===THEME_TO_SLUG[theme]||x.theme===theme)).map(x=>Number(x.answer)).filter(x=>Number.isFinite(x)&&x>=1&&x<=5);
+  const pos=q1.filter(x=>x>=4).length;
+  return {theme,
+    action:total>0&&theme?'Priorizar um conteúdo-piloto sobre '+theme+' e medir a resposta do público.':'Aguardar evidências suficientes antes de definir uma prioridade.',
+    evidenceOne:share===null?'Feed: ainda não há reações suficientes.':'Feed: '+theme+' reuniu '+share+'% da pontuação de interesse ponderada.',
+    evidenceTwo:q1.length?'Investigação: '+pos+' de '+q1.length+' participantes ('+Math.round(100*pos/q1.length)+'%) indicaram interesse alto (4 ou 5/5).':'Investigação: ainda não há respostas declaradas para comparar.',
+    limitation:'Proposta exploratória: a amostra é local e não representa todo o público.'
+  };
 }
 function renderMirror(d){
   const box=document.getElementById('mirrorContent');
@@ -1832,25 +1806,16 @@ function renderMirror(d){
     box.innerHTML=`<div class="mirror-kicker">INVESTIGUE · LIBERADO</div><div class="mirror-title">${st.winning_theme||'Tema vencedor'}</div><div class="mirror-sub">A investigação está disponível nos dispositivos.</div>`;
     return;
   }
-  if(st.status==='decide_preview'){
-    const dec=DECISION[st.winning_theme];
-    box.innerHTML=`<div class="mirror-kicker">DECIDA · APRESENTAÇÃO</div><div class="mirror-title" style="font-size:14px">${dec?.title||'Hora de decidir'}</div><div class="mirror-sub">Ouça a explicação do professor. As decisões dos participantes ainda estão bloqueadas.</div>`;
-    return;
-  }
-  if(st.status==='decide_open'){
-    const dec=DECISION[st.winning_theme];
-    box.innerHTML=`<div class="mirror-kicker">DECIDA</div><div class="mirror-title" style="font-size:14px">${dec?.title||'Hora de decidir'}</div><div class="mirror-sub">Escolha uma estratégia e duas evidências.</div>`;
-    return;
-  }
-  if(st.status==='decide_reveal'){
-    const dec=DECISION[st.winning_theme],rows=d.decisionAnswers||[],counts={};
-    (dec?.options||[]).forEach(o=>counts[o.code]=0);rows.forEach(v=>counts[v.choice_code]=(counts[v.choice_code]||0)+1);
-    box.innerHTML='<div class="mirror-kicker">DECIDA · RESULTADO</div><div class="mirror-title" style="font-size:15px">Qual estratégia o público escolheu?</div><div class="mirror-rank">'+(dec?.options||[]).map(o=>{const p=rows.length?Math.round(100*(counts[o.code]||0)/rows.length):0;return `<div class="mirror-rank-row"><div class="mirror-rank-label">${o.text}</div><div class="mirror-rank-pct">${p}%</div><div class="mirror-mini-track"><div class="mirror-mini-fill" style="width:${p}%"></div></div></div>`}).join('')+'</div>';
+  if(['decide_preview','decide_open','decide_reveal'].includes(st.status)){
+    const dsum=mcTeamDecisionSummary(d,st.winning_theme);
+    box.innerHTML='<div class="mirror-kicker">DECIDA · EQUIPE</div>'+
+      '<div class="mirror-title" style="font-size:14px">'+mcHtml(dsum.action)+'</div>'+
+      '<div class="mirror-sub">'+mcHtml(dsum.evidenceOne)+'<br>'+mcHtml(dsum.evidenceTwo)+'</div>';
     return;
   }
   if(st.status==='closing_reveal'){
     const n=mcClosingClamp(st.closing_stage);
-    box.innerHTML=`<div class="mirror-kicker">FECHAMENTO · ${n}/7</div><div class="mirror-title">${CLOSING_TITLES[n]||'Fechamento pedagógico'}</div>`;
+    box.innerHTML=`<div class="mirror-kicker">FECHAMENTO · ${n}/4</div><div class="mirror-title">${CLOSING_TITLES[n]||'Fechamento pedagógico'}</div>`;
     return;
   }
 }
@@ -1879,10 +1844,8 @@ function render(){
  else if(st==='results_reveal'){ sceneTitle='Revelação de resultados'; sceneSub=`Cena ${revealStage} de 6.`; badgeLabel='cena'; badgeValue=`${revealStage}/6`; }
  else if(st==='investigation_preview'){ sceneTitle='Investigue · apresentação'; sceneSub='Tema revelado; respostas dos participantes ainda bloqueadas.'; badgeLabel='etapa'; badgeValue='INV'; }
  else if(st==='investigation_open'){ sceneTitle='Investigue · liberado'; sceneSub='Os participantes já podem iniciar as respostas.'; badgeLabel='etapa'; badgeValue='INV'; }
- else if(st==='decide_preview'){ sceneTitle='Decida · apresentação'; sceneSub='Desafio em explicação; decisões dos participantes bloqueadas.'; badgeLabel='etapa'; badgeValue='DEC'; }
- else if(st==='decide_open'){ sceneTitle='Decida · liberado'; sceneSub='Participantes tomando a decisão.'; badgeLabel='etapa'; badgeValue='DEC'; }
- else if(st==='decide_reveal'){ sceneTitle='Decida · resultado'; sceneSub='Resultado coletivo em exibição.'; badgeLabel='etapa'; badgeValue='DEC'; }
- else if(st==='closing_reveal'){ sceneTitle='Fechamento pedagógico'; sceneSub=`Cena ${closingStage} de 7.`; badgeLabel='fech.'; badgeValue=`${closingStage}/7`; }
+ else if(['decide_preview','decide_open','decide_reveal'].includes(st)){ sceneTitle='DECIDA · decisão da equipe'; sceneSub='Proposta baseada em evidências coletadas.'; badgeLabel='etapa'; badgeValue='DEC'; }
+ else if(st==='closing_reveal'){ sceneTitle='Fechamento pedagógico'; sceneSub=`Cena ${closingStage} de 4.`; badgeLabel='fech.'; badgeValue=`${closingStage}/4`; }
 
  document.getElementById('sceneText').firstChild.textContent=sceneTitle;
  document.getElementById('sceneSub').textContent=sceneSub;
@@ -1908,16 +1871,9 @@ function render(){
    Array.from({length:12},(_,i)=>`<div class="qbox"><b>Q${i+1}</b><br><span>${qCounts['q'+(i+1)]||0}</span></div>`).join('')+
    '</div>';
 
- const ds=d.decisionAnswers||[];
- const totalDecision=ds.length;
- const voteCounts={};
- ds.forEach(x=>voteCounts[x.choice_code]=(voteCounts[x.choice_code]||0)+1);
- const topVotes=Math.max(0,...Object.values(voteCounts));
- document.getElementById('decideStarted').textContent=d.sessions.filter(s=>s.decision_started_at).length;
- document.getElementById('decideCompleted').textContent=d.sessions.filter(s=>s.decision_completed_at).length;
- document.getElementById('decideTopPct').textContent=totalDecision?Math.round(100*topVotes/totalDecision)+'%':'0%';
- document.getElementById('decideDiversity').textContent=Object.values(voteCounts).filter(v=>v>0).length;
-
+ const decision=mcTeamDecisionSummary(d,latest.state.winning_theme);
+ document.getElementById('mcTeamAction').textContent=decision.action;
+ document.getElementById('mcTeamEvidence').textContent=decision.evidenceOne+' '+decision.evidenceTwo;
  safeSection('prontidão',()=>updateReadiness(d));
  safeSection('análise',()=>renderAnalytics());
 
@@ -1945,14 +1901,13 @@ const TIMER_KEY='mc_presentation_timer_v3';
 const STAGE_TIMER_KEY='mc_stage_timing_v93';
 
 const STAGE_PLAN = [
-  {key:'EXPLORE',label:'EXPLORE',budget:5*60*1000},
-  {key:'REVELE',label:'REVELE',budget:5*60*1000},
+  {key:'EXPLORE',label:'ENTRADA + EXPLORE',budget:5*60*1000},
+  {key:'REVELE',label:'REVELE',budget:3*60*1000},
   {key:'INVESTIGUE',label:'INVESTIGUE',budget:5*60*1000},
-  {key:'ANALISE',label:'ANALISE',budget:5*60*1000},
-  {key:'DECIDA',label:'DECIDA',budget:5*60*1000},
-  {key:'FECHAMENTO',label:'FECHAMENTO',budget:3*60*1000}
+  {key:'DECIDA',label:'DECIDA · EQUIPE',budget:2*60*1000},
+  {key:'FECHAMENTO',label:'FECHAMENTO',budget:2*60*1000}
 ];
-const TOTAL_TARGET_MS=30*60*1000;
+const TOTAL_TARGET_MS=19*60*1000;
 const PLANNED_MS=STAGE_PLAN.reduce((s,x)=>s+x.budget,0);
 const RESERVE_MS=TOTAL_TARGET_MS-PLANNED_MS;
 
@@ -2007,7 +1962,7 @@ function deriveTimedStage(){
       const d=filtered(latest,group);
       const target=expectedTarget(d.sessions.length);
       const investDone=d.sessions.filter(s=>s.investigation_completed_at).length;
-      if(st==='investigation_open' && target>0 && investDone>=target)return 'ANALISE';
+      // A análise foi integrada ao DECIDA; não há etapa extra.
     }catch(_){}
     return 'INVESTIGUE';
   }
@@ -2088,7 +2043,7 @@ function renderPresentationTimer(){
   const ms=timerElapsed();const el=document.getElementById('presentationTimer');
   const fill=document.getElementById('timerFill');const panel=document.getElementById('timerPanel')||document.querySelector('.timer-panel');
   if(el)el.textContent=fmtTime(ms);if(fill)fill.style.width=Math.min(100,(ms/TOTAL_TARGET_MS)*100)+'%';
-  if(panel){panel.classList.toggle('warn',ms>=28*60*1000&&ms<TOTAL_TARGET_MS);panel.classList.toggle('danger',ms>=TOTAL_TARGET_MS)}
+  if(panel){panel.classList.toggle('warn',ms>=17*60*1000&&ms<TOTAL_TARGET_MS);panel.classList.toggle('danger',ms>=TOTAL_TARGET_MS)}
   const currentKey=stageTiming.current;const plan=STAGE_PLAN.find(x=>x.key===currentKey);const stageElapsed=currentStageElapsed();
   const currentName=document.getElementById('currentTimedStage');const currentClock=document.getElementById('currentStageClock');
   if(currentName)currentName.textContent=plan?plan.label:'aguardando';
