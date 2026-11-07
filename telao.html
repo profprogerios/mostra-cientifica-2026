@@ -690,7 +690,7 @@ const DECISION=window.M9_DATA.DECISION;
 const channel=('BroadcastChannel' in window)?new BroadcastChannel('mc-data-driven-2026'):null;
 function remoteEnabled(){return location.protocol!=='file:' && CONFIG.supabaseUrl.startsWith('http')&&!CONFIG.supabasePublishableKey.startsWith('COLE_')}
 function headers(extra={}){return {apikey:CONFIG.supabasePublishableKey,'Content-Type':'application/json',...extra}}
-async function sb(path,opts={}){const r=await fetch(CONFIG.supabaseUrl+'/rest/v1/'+path,{...opts,headers:headers(opts.headers||{})});if(!r.ok)throw new Error(await r.text());const t=await r.text();return t?JSON.parse(t):null}
+async function sb(path,opts={}){const r=await fetch(CONFIG.supabaseUrl+'/rest/v1/'+path,{...opts,cache:'no-store',headers:headers(opts.headers||{})});if(!r.ok)throw new Error(await r.text());const t=await r.text();return t?JSON.parse(t):null}
 function dg(k,f){try{return JSON.parse(localStorage.getItem(k)||'null')??f}catch{return f}}
 function ds(k,v){localStorage.setItem(k,JSON.stringify(v));channel?.postMessage({type:'changed',key:k})}
 async function getAll(){
@@ -965,8 +965,31 @@ function closingScene(stage){
 
 function sceneHtml(d){
  const st=latest.state||{status:'waiting',reveal_stage:0}, stage=st.reveal_stage||0;
- // No estado de espera, dispensa ranking e metodos avancados do navegador de Smart TV.
- if(st.status==='waiting') return `<div class="mc-welcome"><div><div class="kicker">DATA DRIVEN · MOSTRA CIENTÍFICA</div><h1>Do interesse ao dado</h1><p>Uma experiência coletiva sobre escolhas, dados e decisões.</p><p class="mc-help">Acesse pelo QR Code, escolha um avatar e aguarde a liberação.</p></div><div class="mc-qr"><div class="mc-qr-image"><img id="mcQRCode" alt="QR Code para acessar a página do participante" hidden><div id="mcQRPlaceholder" class="mc-qr-placeholder" role="status">Abra pelo iniciador da Mostra para gerar o QR Code automaticamente</div></div><strong>Participe pelo celular</strong><small id="mcQRMessage" aria-live="polite">Aponte a câmera do celular para participar.</small><a id="mcQRAddress" class="mc-qr-address" target="_blank" rel="noopener noreferrer" hidden></a></div></div>`;
+ // Estados do feed não dependem de métricas: refletem imediatamente o comando do professor.
+ const current=st.status||'waiting';
+ if(['waiting','feed_open','feed_paused'].includes(current)){
+   const title=current==='waiting'?'Do interesse ao dado':current==='feed_open'?'Feed liberado':'Feed pausado';
+   const summary=current==='waiting'?'Uma experiência coletiva sobre escolhas, dados e decisões.':
+     current==='feed_open'?'O feed está aberto nos celulares. As interações estão sendo registradas.':
+     'O professor pausou o feed. Aguarde a retomada.';
+   const help=current==='waiting'?'Acesse pelo QR Code, escolha um avatar e aguarde a liberação.':
+     current==='feed_open'?'Acesse pelo QR Code e participe da experiência.':
+     'O acesso permanece disponível. A navegação está temporariamente pausada.';
+   return `<div class="mc-welcome"><div>
+     <div class="kicker">DATA DRIVEN · MOSTRA CIENTÍFICA</div>
+     <h1>${title}</h1><p>${summary}</p><p class="mc-help">${help}</p>
+     </div><div class="mc-qr"><div class="mc-qr-image">
+       <img id="mcQRCode" alt="QR Code para acessar a página do participante" hidden>
+       <div id="mcQRPlaceholder" class="mc-qr-placeholder" role="status">Preparando acesso...</div>
+     </div><strong>Participe pelo celular</strong>
+     <small id="mcQRMessage" aria-live="polite">Aponte a câmera do celular para participar.</small>
+     <a id="mcQRAddress" class="mc-qr-address" target="_blank" rel="noopener noreferrer" hidden></a>
+     </div></div>`;
+ }
+ if(current==='feed_closed'){
+   return '<div class="kicker">EXPLORE · CONCLUÍDO</div><h1>Feed encerrado</h1><p>Dados coletados. Aguarde a revelação dos padrões.</p>';
+ }
+ // Só calcula indicadores e ranking nas cenas que realmente exigem esses dados.
  const m=metrics(d), r=ranking(d.reactions,d.attention);
  if(st.status==='closing_reveal') return closingScene(st.closing_stage||1);
  if(st.status==='decide_preview'){
