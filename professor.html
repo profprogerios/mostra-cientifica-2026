@@ -1735,7 +1735,7 @@ function mcTeamDecisionSummary(d,chosen){
   const q1=(d.investigationAnswers||[]).filter(x=>x.question_id==='q1'&&(x.theme_slug===THEME_TO_SLUG[theme]||x.theme===theme)).map(x=>Number(x.answer)).filter(x=>Number.isFinite(x)&&x>=1&&x<=5);
   const pos=q1.filter(x=>x>=4).length;
   return {theme,
-    action:total>0&&theme?'Nossa indicação seria priorizar um conteúdo-piloto sobre '+theme+' e medir a resposta do público.':'Nossa indicação seria coletar mais dados antes de definir uma prioridade.',
+    action:total>0&&theme?'Priorizar um conteúdo-piloto sobre '+theme+' e medir a resposta do público.':'Coletar mais dados antes de definir uma prioridade.',
     evidenceOne:share===null?'Feed: ainda não há reações suficientes.':'Feed: '+theme+' reuniu '+share+'% da pontuação de interesse ponderada.',
     evidenceTwo:q1.length?'Investigação: '+pos+' de '+q1.length+' participantes ('+Math.round(100*pos/q1.length)+'%) indicaram interesse alto (4 ou 5/5).':'Investigação: ainda não há respostas declaradas para comparar.',
     limitation:'Recomendação exploratória da equipe: esta amostra é local e não representa todo o público.'
