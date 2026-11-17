@@ -642,14 +642,13 @@ input#expectedCount:disabled{opacity:.72;cursor:not-allowed;}
   <div class="prof-login-card">
     <div class="login-brand">Mostra Científica · Data Driven</div>
     <h2 id="profLoginTitle">Acesso do professor</h2>
-    <p>Digite o PIN para abrir o painel de comando.</p>
+    <p>Digite a senha para abrir o painel de comando.</p>
     <div>
-      <label for="profPin">PIN</label>
+      <label for="profPin">Senha</label>
       <input id="profPin"
              type="password"
-             inputmode="numeric"
-             autocomplete="off"
-             maxlength="12"
+             autocomplete="current-password"
+             maxlength="64"
              onkeydown="if(event.key==='Enter'){event.preventDefault();m9ProfessorLogin();}">
       <button id="profLoginBtn" type="button" onclick="m9ProfessorLogin()">ENTRAR</button>
       <div id="profLoginError" class="prof-login-error" aria-live="polite"></div>
@@ -659,25 +658,33 @@ input#expectedCount:disabled{opacity:.72;cursor:not-allowed;}
 
 <script>
 (function(){
+const MC_LOGIN_VERSION='mostra-2026-v1';
 window.m9ProfessorLogin=async function(){
  const input=document.getElementById('profPin'), error=document.getElementById('profLoginError');
  const pin=String(input?.value||'').trim();
- if(!pin){if(error)error.textContent='Informe o PIN.';return false}
+ if(!pin){if(error)error.textContent='Informe a senha.';return false}
  const cfg=window.M9_PUBLIC_CONFIG;
  if(location.protocol!=='file:' && cfg?.supabaseUrl && cfg?.supabasePublishableKey){
   try{
    const r=await fetch(cfg.supabaseUrl+'/rest/v1/mc_experiment_state?id=eq.main&select=id',{
     method:'PATCH',headers:{'apikey':cfg.supabasePublishableKey,'Content-Type':'application/json','Prefer':'return=representation','x-mc-control':pin},
     body:JSON.stringify({updated_at:new Date().toISOString()})});
-   const data=await r.json();if(!r.ok||!Array.isArray(data)||data.length!==1)throw Error('PIN inválido ou controle indisponível');
+   const data=await r.json();if(!r.ok||!Array.isArray(data)||data.length!==1)throw Error('Senha inválida ou controle indisponível');
   }catch(e){if(error)error.textContent='Acesso não autorizado ou conexão indisponível.';return false}
  }
- try{sessionStorage.setItem('mc_professor_control_key',pin);sessionStorage.setItem('mc_professor_authorized','1')}catch(_){}
+ try{sessionStorage.setItem('mc_professor_control_key',pin);sessionStorage.setItem('mc_professor_authorized','1');sessionStorage.setItem('mc_professor_login_version',MC_LOGIN_VERSION)}catch(_){}
  if(error)error.textContent='';document.body.classList.remove('prof-locked');
  document.getElementById('profLoginOverlay')?.classList.add('hidden');if(input)input.value='';return true;
 };
 window.m9ProfessorLockInit=function(){
- let authorized=false;try{authorized=sessionStorage.getItem('mc_professor_authorized')==='1' && !!sessionStorage.getItem('mc_professor_control_key')}catch(_){}
+ let authorized=false;
+ try{
+   if(sessionStorage.getItem('mc_professor_login_version')!==MC_LOGIN_VERSION){
+     sessionStorage.removeItem('mc_professor_control_key');
+     sessionStorage.removeItem('mc_professor_authorized');
+   }
+   authorized=sessionStorage.getItem('mc_professor_authorized')==='1' && !!sessionStorage.getItem('mc_professor_control_key');
+ }catch(_){}
  document.body.classList.toggle('prof-locked',!authorized);
  document.getElementById('profLoginOverlay')?.classList.toggle('hidden',authorized);
  if(!authorized)setTimeout(()=>document.getElementById('profPin')?.focus(),50);
@@ -1335,7 +1342,7 @@ async function writeState(patch){
       headers:{'Prefer':'return=representation','x-mc-control':ensureProfessorControlKey()},
       body:JSON.stringify(next)
     });
-    if(!Array.isArray(data)||!data.length){clearProfessorControlKey();throw Error('Controle não autorizado. Faça login novamente com o PIN do professor.')}
+    if(!Array.isArray(data)||!data.length){clearProfessorControlKey();throw Error('Controle não autorizado. Faça login novamente com a senha do professor.')}
   }else ds('mc_state',next);
   // O feed, tanto manual quanto automático, é o gatilho único do cronômetro.
   if(next.status==='feed_open' && cur.status!=='feed_open')ensureTimerRunningForExperience();
